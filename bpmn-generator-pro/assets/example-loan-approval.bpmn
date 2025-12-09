@@ -1,0 +1,505 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_LoanApproval"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="BPMN Generator Pro"
+                  exporterVersion="2.0">
+
+  <!--
+    NOTE: This example uses LANES to demonstrate lane-based modeling.
+    For single-organization processes, PMA approach recommends using ROLE OVERLAYS instead.
+    See SKILL.md "Process Layout Philosophy (PMA Approach)" for details.
+    Lanes are shown here for educational purposes and multi-org scenarios.
+  -->
+
+  <!-- Message Definitions -->
+  <bpmn:message id="Message_LoanApplication" name="LoanApplicationMessage"/>
+  
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_CreditCheckFailed" name="CreditCheckFailed" errorCode="CREDIT_CHECK_ERROR"/>
+  
+  <bpmn:collaboration id="Collaboration_LoanProcess">
+    <bpmn:participant id="Participant_Bank" name="Bank" processRef="Process_LoanApproval"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_LoanApproval" name="Loan Approval Process" isExecutable="true">
+    
+    <!-- Lane Set -->
+    <bpmn:laneSet id="LaneSet_Bank">
+      <bpmn:lane id="Lane_FrontOffice" name="Front Office">
+        <bpmn:flowNodeRef>Start_ApplicationReceived</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidateApplication</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_DocumentsComplete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RequestMissingDocs</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeNotification</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifyApplicant</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_RiskAssessment" name="Risk Assessment">
+        <bpmn:flowNodeRef>Gateway_Fork_Assessment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CheckCreditScore</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_VerifyIncome</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AssessCollateral</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Join_Assessment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CalculateRiskScore</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Approval" name="Approval Committee">
+        <bpmn:flowNodeRef>Gateway_RiskLevel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AutoApprove</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ManualReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Decision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PrepareOffer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeRejection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RecordRejection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_LoanApproved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_LoanRejected</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- ===== START EVENT ===== -->
+    <bpmn:startEvent id="Start_ApplicationReceived" name="Application Received">
+      <bpmn:messageEventDefinition messageRef="Message_LoanApplication"/>
+      <bpmn:outgoing>Flow_Start_Validate</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ===== FRONT OFFICE ===== -->
+    <bpmn:userTask id="Task_ValidateApplication" name="Validate Application" camunda:assignee="${frontOfficeAgent}">
+      <bpmn:incoming>Flow_Start_Validate</bpmn:incoming>
+      <bpmn:incoming>Flow_DocsReceived_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validate_DocsCheck</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_DocumentsComplete" name="Documents Complete?" default="Flow_DocsComplete_Yes">
+      <bpmn:incoming>Flow_Validate_DocsCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_DocsComplete_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_DocsComplete_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_RequestMissingDocs" name="Request Missing Documents" 
+                      camunda:type="external" camunda:topic="sendDocumentRequest">
+      <bpmn:incoming>Flow_DocsComplete_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_RequestDocs_Wait</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateCatchEvent id="Event_DocsReceived" name="Documents Received">
+      <bpmn:incoming>Flow_RequestDocs_Wait</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Message_LoanApplication"/>
+      <bpmn:outgoing>Flow_DocsReceived_Validate</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- ===== RISK ASSESSMENT (PARALLEL) ===== -->
+    <bpmn:parallelGateway id="Gateway_Fork_Assessment" name="Start Assessment">
+      <bpmn:incoming>Flow_DocsComplete_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fork_Credit</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fork_Income</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fork_Collateral</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:serviceTask id="Task_CheckCreditScore" name="Check Credit Score" 
+                      camunda:type="external" camunda:topic="creditBureau">
+      <bpmn:incoming>Flow_Fork_Credit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Credit_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_VerifyIncome" name="Verify Income" 
+                      camunda:type="external" camunda:topic="incomeVerification">
+      <bpmn:incoming>Flow_Fork_Income</bpmn:incoming>
+      <bpmn:outgoing>Flow_Income_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_AssessCollateral" name="Assess Collateral" camunda:assignee="${riskAnalyst}">
+      <bpmn:incoming>Flow_Fork_Collateral</bpmn:incoming>
+      <bpmn:outgoing>Flow_Collateral_Join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:parallelGateway id="Gateway_Join_Assessment" name="Assessment Complete">
+      <bpmn:incoming>Flow_Credit_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Income_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Collateral_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_Calculate</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:businessRuleTask id="Task_CalculateRiskScore" name="Calculate Risk Score"
+                           camunda:resultVariable="riskScore"
+                           camunda:decisionRef="decision_risk_score"
+                           camunda:mapDecisionResult="singleEntry">
+      <bpmn:incoming>Flow_Join_Calculate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Calculate_RiskLevel</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- ===== APPROVAL ===== -->
+    <bpmn:exclusiveGateway id="Gateway_RiskLevel" name="Risk Level?" default="Flow_Risk_Manual">
+      <bpmn:incoming>Flow_Calculate_RiskLevel</bpmn:incoming>
+      <bpmn:outgoing>Flow_Risk_Low</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Risk_Manual</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Risk_High</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_AutoApprove" name="Auto-Approve Loan" 
+                      camunda:type="external" camunda:topic="autoApproval">
+      <bpmn:incoming>Flow_Risk_Low</bpmn:incoming>
+      <bpmn:outgoing>Flow_AutoApprove_Offer</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_ManualReview" name="Review Application" camunda:candidateGroups="loanCommittee">
+      <bpmn:incoming>Flow_Risk_Manual</bpmn:incoming>
+      <bpmn:outgoing>Flow_Manual_Decision</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- SLA Timer on Manual Review -->
+    <bpmn:boundaryEvent id="Timer_ReviewSLA" name="48h SLA Warning" 
+                        attachedToRef="Task_ManualReview" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>Flow_SLA_Escalate</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="Task_EscalateReview" name="Escalate to Manager" 
+                      camunda:type="external" camunda:topic="escalation">
+      <bpmn:incoming>Flow_SLA_Escalate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Escalate_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_Escalated" name="Escalation Sent">
+      <bpmn:incoming>Flow_Escalate_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:exclusiveGateway id="Gateway_Decision" name="Approved?" default="Flow_Decision_Approved">
+      <bpmn:incoming>Flow_Manual_Decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_Decision_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Decision_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:exclusiveGateway id="Gateway_MergeApproval" name="Merge Approval Paths">
+      <bpmn:incoming>Flow_AutoApprove_Offer</bpmn:incoming>
+      <bpmn:incoming>Flow_Decision_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_Merge_PrepareOffer</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_PrepareOffer" name="Prepare Loan Offer"
+                      camunda:type="external" camunda:topic="offerGeneration">
+      <bpmn:incoming>Flow_Merge_PrepareOffer</bpmn:incoming>
+      <bpmn:outgoing>Flow_Offer_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_MergeRejection" name="Merge Rejection Paths">
+      <bpmn:incoming>Flow_Risk_High</bpmn:incoming>
+      <bpmn:incoming>Flow_Decision_Rejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_Merge_RecordRejection</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_RecordRejection" name="Record Rejection"
+                      camunda:type="external" camunda:topic="rejectionRecord">
+      <bpmn:incoming>Flow_Merge_RecordRejection</bpmn:incoming>
+      <bpmn:outgoing>Flow_Reject_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_MergeNotification" name="Merge Notification Paths">
+      <bpmn:incoming>Flow_Offer_Notify</bpmn:incoming>
+      <bpmn:incoming>Flow_Reject_Notify</bpmn:incoming>
+      <bpmn:outgoing>Flow_Merge_NotifyApplicant</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_NotifyApplicant" name="Notify Applicant"
+                      camunda:type="external" camunda:topic="applicantNotification">
+      <bpmn:incoming>Flow_Merge_NotifyApplicant</bpmn:incoming>
+      <bpmn:outgoing>Flow_Notify_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_FinalOutcome" name="Outcome?" default="Flow_End_Approved">
+      <bpmn:incoming>Flow_Notify_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_End_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_End_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ===== END EVENTS ===== -->
+    <bpmn:endEvent id="End_LoanApproved" name="Loan Approved">
+      <bpmn:incoming>Flow_End_Approved</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_LoanRejected" name="Loan Rejected">
+      <bpmn:incoming>Flow_End_Rejected</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ===== SEQUENCE FLOWS ===== -->
+    <bpmn:sequenceFlow id="Flow_Start_Validate" sourceRef="Start_ApplicationReceived" targetRef="Task_ValidateApplication"/>
+    <bpmn:sequenceFlow id="Flow_Validate_DocsCheck" sourceRef="Task_ValidateApplication" targetRef="Gateway_DocumentsComplete"/>
+    
+    <bpmn:sequenceFlow id="Flow_DocsComplete_Yes" name="Yes" sourceRef="Gateway_DocumentsComplete" targetRef="Gateway_Fork_Assessment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${documentsComplete == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_DocsComplete_No" name="No" sourceRef="Gateway_DocumentsComplete" targetRef="Task_RequestMissingDocs">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${documentsComplete == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_RequestDocs_Wait" sourceRef="Task_RequestMissingDocs" targetRef="Event_DocsReceived"/>
+    <bpmn:sequenceFlow id="Flow_DocsReceived_Validate" sourceRef="Event_DocsReceived" targetRef="Task_ValidateApplication"/>
+    
+    <bpmn:sequenceFlow id="Flow_Fork_Credit" sourceRef="Gateway_Fork_Assessment" targetRef="Task_CheckCreditScore"/>
+    <bpmn:sequenceFlow id="Flow_Fork_Income" sourceRef="Gateway_Fork_Assessment" targetRef="Task_VerifyIncome"/>
+    <bpmn:sequenceFlow id="Flow_Fork_Collateral" sourceRef="Gateway_Fork_Assessment" targetRef="Task_AssessCollateral"/>
+    
+    <bpmn:sequenceFlow id="Flow_Credit_Join" sourceRef="Task_CheckCreditScore" targetRef="Gateway_Join_Assessment"/>
+    <bpmn:sequenceFlow id="Flow_Income_Join" sourceRef="Task_VerifyIncome" targetRef="Gateway_Join_Assessment"/>
+    <bpmn:sequenceFlow id="Flow_Collateral_Join" sourceRef="Task_AssessCollateral" targetRef="Gateway_Join_Assessment"/>
+    
+    <bpmn:sequenceFlow id="Flow_Join_Calculate" sourceRef="Gateway_Join_Assessment" targetRef="Task_CalculateRiskScore"/>
+    <bpmn:sequenceFlow id="Flow_Calculate_RiskLevel" sourceRef="Task_CalculateRiskScore" targetRef="Gateway_RiskLevel"/>
+    
+    <bpmn:sequenceFlow id="Flow_Risk_Low" name="Low Risk" sourceRef="Gateway_RiskLevel" targetRef="Task_AutoApprove">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskScore &lt; 30}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Risk_Manual" name="Medium Risk" sourceRef="Gateway_RiskLevel" targetRef="Task_ManualReview"/>
+    <bpmn:sequenceFlow id="Flow_Risk_High" name="High Risk" sourceRef="Gateway_RiskLevel" targetRef="Gateway_MergeRejection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskScore &gt; 70}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Merge_RecordRejection" sourceRef="Gateway_MergeRejection" targetRef="Task_RecordRejection"/>
+    
+    <bpmn:sequenceFlow id="Flow_AutoApprove_Offer" sourceRef="Task_AutoApprove" targetRef="Gateway_MergeApproval"/>
+    <bpmn:sequenceFlow id="Flow_Manual_Decision" sourceRef="Task_ManualReview" targetRef="Gateway_Decision"/>
+    <bpmn:sequenceFlow id="Flow_SLA_Escalate" sourceRef="Timer_ReviewSLA" targetRef="Task_EscalateReview"/>
+    <bpmn:sequenceFlow id="Flow_Escalate_End" sourceRef="Task_EscalateReview" targetRef="End_Escalated"/>
+    
+    <bpmn:sequenceFlow id="Flow_Decision_Approved" name="Yes" sourceRef="Gateway_Decision" targetRef="Gateway_MergeApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Merge_PrepareOffer" sourceRef="Gateway_MergeApproval" targetRef="Task_PrepareOffer"/>
+
+    <bpmn:sequenceFlow id="Flow_Decision_Rejected" name="No" sourceRef="Gateway_Decision" targetRef="Gateway_MergeRejection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_Offer_Notify" sourceRef="Task_PrepareOffer" targetRef="Gateway_MergeNotification"/>
+    <bpmn:sequenceFlow id="Flow_Reject_Notify" sourceRef="Task_RecordRejection" targetRef="Gateway_MergeNotification"/>
+    <bpmn:sequenceFlow id="Flow_Merge_NotifyApplicant" sourceRef="Gateway_MergeNotification" targetRef="Task_NotifyApplicant"/>
+    <bpmn:sequenceFlow id="Flow_Notify_Gateway" sourceRef="Task_NotifyApplicant" targetRef="Gateway_FinalOutcome"/>
+    
+    <bpmn:sequenceFlow id="Flow_End_Approved" name="Approved" sourceRef="Gateway_FinalOutcome" targetRef="End_LoanApproved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${outcome == 'APPROVED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_End_Rejected" name="Rejected" sourceRef="Gateway_FinalOutcome" targetRef="End_LoanRejected">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${outcome == 'REJECTED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_LoanProcess">
+      
+      <!-- Pool -->
+      <bpmndi:BPMNShape id="Participant_Bank_di" bpmnElement="Participant_Bank" isHorizontal="true">
+        <dc:Bounds x="130" y="80" width="1400" height="570"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Lanes -->
+      <bpmndi:BPMNShape id="Lane_FrontOffice_di" bpmnElement="Lane_FrontOffice" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1370" height="160"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_RiskAssessment_di" bpmnElement="Lane_RiskAssessment" isHorizontal="true">
+        <dc:Bounds x="160" y="240" width="1370" height="200"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Approval_di" bpmnElement="Lane_Approval" isHorizontal="true">
+        <dc:Bounds x="160" y="440" width="1370" height="210"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Front Office Elements -->
+      <bpmndi:BPMNShape id="Start_ApplicationReceived_di" bpmnElement="Start_ApplicationReceived">
+        <dc:Bounds x="212" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="195" y="185" width="71" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Task_ValidateApplication_di" bpmnElement="Task_ValidateApplication">
+        <dc:Bounds x="300" y="120" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Gateway_DocumentsComplete_di" bpmnElement="Gateway_DocumentsComplete" isMarkerVisible="true">
+        <dc:Bounds x="455" y="135" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="445" y="98" width="70" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Risk Assessment Elements -->
+      <bpmndi:BPMNShape id="Gateway_Fork_Assessment_di" bpmnElement="Gateway_Fork_Assessment">
+        <dc:Bounds x="555" y="315" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Task_CheckCreditScore_di" bpmnElement="Task_CheckCreditScore">
+        <dc:Bounds x="660" y="260" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Task_VerifyIncome_di" bpmnElement="Task_VerifyIncome">
+        <dc:Bounds x="660" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Task_AssessCollateral_di" bpmnElement="Task_AssessCollateral">
+        <dc:Bounds x="660" y="260" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Join_Assessment_di" bpmnElement="Gateway_Join_Assessment">
+        <dc:Bounds x="815" y="315" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Task_CalculateRiskScore_di" bpmnElement="Task_CalculateRiskScore">
+        <dc:Bounds x="920" y="300" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Approval Elements -->
+      <bpmndi:BPMNShape id="Gateway_RiskLevel_di" bpmnElement="Gateway_RiskLevel" isMarkerVisible="true">
+        <dc:Bounds x="945" y="525" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="941" y="495" width="58" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ManualReview_di" bpmnElement="Task_ManualReview">
+        <dc:Bounds x="1050" y="510" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Decision_di" bpmnElement="Gateway_Decision" isMarkerVisible="true">
+        <dc:Bounds x="1195" y="525" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1192" y="495" width="56" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_MergeApproval_di" bpmnElement="Gateway_MergeApproval" isMarkerVisible="true">
+        <dc:Bounds x="1265" y="465" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1250" y="435" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_PrepareOffer_di" bpmnElement="Task_PrepareOffer">
+        <dc:Bounds x="1340" y="450" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_MergeRejection_di" bpmnElement="Gateway_MergeRejection" isMarkerVisible="true">
+        <dc:Bounds x="1265" y="585" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1250" y="555" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_RecordRejection_di" bpmnElement="Task_RecordRejection">
+        <dc:Bounds x="1340" y="570" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_MergeNotification_di" bpmnElement="Gateway_MergeNotification" isMarkerVisible="true">
+        <dc:Bounds x="1365" y="135" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1350" y="105" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_NotifyApplicant_di" bpmnElement="Task_NotifyApplicant">
+        <dc:Bounds x="1450" y="120" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_FinalOutcome_di" bpmnElement="Gateway_FinalOutcome" isMarkerVisible="true">
+        <dc:Bounds x="1365" y="305" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1362" y="275" width="56" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="End_LoanApproved_di" bpmnElement="End_LoanApproved">
+        <dc:Bounds x="1452" y="472" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1433" y="515" width="74" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="End_LoanRejected_di" bpmnElement="End_LoanRejected">
+        <dc:Bounds x="1452" y="592" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1434" y="635" width="72" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges (abbreviated for brevity - full version would include all flows) -->
+      <bpmndi:BPMNEdge id="Flow_Start_Validate_di" bpmnElement="Flow_Start_Validate">
+        <di:waypoint x="248" y="160"/>
+        <di:waypoint x="300" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- New flow edges for merge gateways -->
+      <bpmndi:BPMNEdge id="Flow_AutoApprove_Offer_di" bpmnElement="Flow_AutoApprove_Offer">
+        <di:waypoint x="1050" y="490"/>
+        <di:waypoint x="1290" y="490"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Decision_Approved_di" bpmnElement="Flow_Decision_Approved">
+        <di:waypoint x="1220" y="525"/>
+        <di:waypoint x="1220" y="490"/>
+        <di:waypoint x="1265" y="490"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Merge_PrepareOffer_di" bpmnElement="Flow_Merge_PrepareOffer">
+        <di:waypoint x="1315" y="490"/>
+        <di:waypoint x="1340" y="490"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Risk_High_di" bpmnElement="Flow_Risk_High">
+        <di:waypoint x="995" y="550"/>
+        <di:waypoint x="1130" y="550"/>
+        <di:waypoint x="1130" y="610"/>
+        <di:waypoint x="1265" y="610"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Decision_Rejected_di" bpmnElement="Flow_Decision_Rejected">
+        <di:waypoint x="1220" y="575"/>
+        <di:waypoint x="1220" y="610"/>
+        <di:waypoint x="1265" y="610"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Merge_RecordRejection_di" bpmnElement="Flow_Merge_RecordRejection">
+        <di:waypoint x="1315" y="610"/>
+        <di:waypoint x="1340" y="610"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Offer_Notify_di" bpmnElement="Flow_Offer_Notify">
+        <di:waypoint x="1390" y="450"/>
+        <di:waypoint x="1390" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Reject_Notify_di" bpmnElement="Flow_Reject_Notify">
+        <di:waypoint x="1390" y="570"/>
+        <di:waypoint x="1390" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Merge_NotifyApplicant_di" bpmnElement="Flow_Merge_NotifyApplicant">
+        <di:waypoint x="1415" y="160"/>
+        <di:waypoint x="1450" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Notify_Gateway_di" bpmnElement="Flow_Notify_Gateway">
+        <di:waypoint x="1500" y="200"/>
+        <di:waypoint x="1500" y="330"/>
+        <di:waypoint x="1415" y="330"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_End_Approved_di" bpmnElement="Flow_End_Approved">
+        <di:waypoint x="1390" y="355"/>
+        <di:waypoint x="1390" y="490"/>
+        <di:waypoint x="1452" y="490"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_End_Rejected_di" bpmnElement="Flow_End_Rejected">
+        <di:waypoint x="1390" y="355"/>
+        <di:waypoint x="1390" y="610"/>
+        <di:waypoint x="1452" y="610"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

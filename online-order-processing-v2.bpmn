@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_OnlineOrder"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="BPMN Generator Pro"
+                  exporterVersion="2.0">
+
+  <bpmn:error id="Error_PaymentFailed" name="PaymentError" errorCode="PAYMENT_FAILED"/>
+
+  <bpmn:collaboration id="Collaboration_OnlineOrder">
+    <bpmn:participant id="Participant_OrderProcessing" name="E-Commerce Platform" processRef="Process_OnlineOrder"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_OnlineOrder" name="Online Order Processing" isExecutable="true">
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Customer" name="Customer Service">
+        <bpmn:flowNodeRef>Start_OrderReceived</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidateOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ValidOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifyRejection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_OrderRejected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifySuccess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_OrderCompleted</bpmn:flowNodeRef>
+      </bpmn:lane>
+
+      <bpmn:lane id="Lane_Operations" name="Operations">
+        <bpmn:flowNodeRef>Gateway_ParallelCheck</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CheckInventory</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_VerifyCredit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_JoinChecks</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AllChecksPassed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReserveItems</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PackOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ShipOrder</bpmn:flowNodeRef>
+      </bpmn:lane>
+
+      <bpmn:lane id="Lane_Finance" name="Finance">
+        <bpmn:flowNodeRef>SubProcess_ProcessPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RefundCustomer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_PaymentFailed</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="Start_OrderReceived" name="Order Received">
+      <bpmn:outgoing>Flow_Start_Validate</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Validate Order -->
+    <bpmn:userTask id="Task_ValidateOrder" name="Validate Order Data">
+      <bpmn:incoming>Flow_Start_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validate_Gateway</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Validation Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_ValidOrder" name="Valid Order?" default="Flow_Valid">
+      <bpmn:incoming>Flow_Validate_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Rejection Path -->
+    <bpmn:serviceTask id="Task_NotifyRejection" name="Notify Rejection" camunda:type="external" camunda:topic="notifyCustomer">
+      <bpmn:incoming>Flow_Invalid</bpmn:incoming>
+      <bpmn:incoming>Flow_ChecksFailed</bpmn:incoming>
+      <bpmn:outgoing>Flow_NotifyRejection_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_OrderRejected" name="Order Rejected">
+      <bpmn:incoming>Flow_NotifyRejection_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Parallel Checks -->
+    <bpmn:parallelGateway id="Gateway_ParallelCheck" name="Start Checks">
+      <bpmn:incoming>Flow_Valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToInventory</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToCredit</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:serviceTask id="Task_CheckInventory" name="Check Inventory" camunda:type="external" camunda:topic="checkStock">
+      <bpmn:incoming>Flow_ToInventory</bpmn:incoming>
+      <bpmn:outgoing>Flow_InventoryDone</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_VerifyCredit" name="Verify Credit Rating" camunda:type="external" camunda:topic="checkCredit">
+      <bpmn:incoming>Flow_ToCredit</bpmn:incoming>
+      <bpmn:outgoing>Flow_CreditDone</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Join Parallel Checks -->
+    <bpmn:parallelGateway id="Gateway_JoinChecks" name="Sync Checks">
+      <bpmn:incoming>Flow_InventoryDone</bpmn:incoming>
+      <bpmn:incoming>Flow_CreditDone</bpmn:incoming>
+      <bpmn:outgoing>Flow_ChecksComplete</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Evaluate Checks -->
+    <bpmn:exclusiveGateway id="Gateway_AllChecksPassed" name="All Checks Passed?" default="Flow_ChecksPassed">
+      <bpmn:incoming>Flow_ChecksComplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_ChecksPassed</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ChecksFailed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Payment Subprocess -->
+    <bpmn:subProcess id="SubProcess_ProcessPayment" name="Process Payment">
+      <bpmn:incoming>Flow_ChecksPassed</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentComplete</bpmn:outgoing>
+
+      <bpmn:startEvent id="SubStart_Payment" name="Begin Payment">
+        <bpmn:outgoing>SubFlow_Start_Calculate</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:scriptTask id="SubTask_CalculateTotal" name="Calculate Total" scriptFormat="groovy">
+        <bpmn:incoming>SubFlow_Start_Calculate</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_Calculate_Charge</bpmn:outgoing>
+        <bpmn:script><![CDATA[
+          execution.setVariable("retryCount", 0)
+        ]]></bpmn:script>
+      </bpmn:scriptTask>
+
+      <bpmn:serviceTask id="SubTask_ChargePayment" name="Charge Payment" camunda:type="external" camunda:topic="chargeCard">
+        <bpmn:incoming>SubFlow_Calculate_Charge</bpmn:incoming>
+        <bpmn:incoming>SubFlow_Retry</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_Charge_Confirm</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:serviceTask id="SubTask_ConfirmPayment" name="Confirm Payment" camunda:type="external" camunda:topic="confirmPayment">
+        <bpmn:incoming>SubFlow_Charge_Confirm</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_Confirm_End</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="SubEnd_Success" name="Payment Confirmed">
+        <bpmn:incoming>SubFlow_Confirm_End</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:boundaryEvent id="Boundary_PaymentError" name="Payment Failed" attachedToRef="SubTask_ChargePayment">
+        <bpmn:errorEventDefinition errorRef="Error_PaymentFailed"/>
+        <bpmn:outgoing>SubFlow_Error_Retry</bpmn:outgoing>
+      </bpmn:boundaryEvent>
+
+      <bpmn:scriptTask id="SubTask_IncrementRetry" name="Increment Retry" scriptFormat="groovy">
+        <bpmn:incoming>SubFlow_Error_Retry</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_Increment_Gateway</bpmn:outgoing>
+        <bpmn:script><![CDATA[
+          def count = execution.getVariable("retryCount") ?: 0
+          execution.setVariable("retryCount", count + 1)
+        ]]></bpmn:script>
+      </bpmn:scriptTask>
+
+      <bpmn:exclusiveGateway id="SubGateway_RetryCheck" name="Retries &lt; 3?" default="SubFlow_GiveUp">
+        <bpmn:incoming>SubFlow_Increment_Gateway</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_Retry</bpmn:outgoing>
+        <bpmn:outgoing>SubFlow_GiveUp</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:endEvent id="SubEnd_Error" name="Payment Failed">
+        <bpmn:incoming>SubFlow_GiveUp</bpmn:incoming>
+        <bpmn:errorEventDefinition errorRef="Error_PaymentFailed"/>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="SubFlow_Start_Calculate" sourceRef="SubStart_Payment" targetRef="SubTask_CalculateTotal"/>
+      <bpmn:sequenceFlow id="SubFlow_Calculate_Charge" sourceRef="SubTask_CalculateTotal" targetRef="SubTask_ChargePayment"/>
+      <bpmn:sequenceFlow id="SubFlow_Charge_Confirm" sourceRef="SubTask_ChargePayment" targetRef="SubTask_ConfirmPayment"/>
+      <bpmn:sequenceFlow id="SubFlow_Confirm_End" sourceRef="SubTask_ConfirmPayment" targetRef="SubEnd_Success"/>
+      <bpmn:sequenceFlow id="SubFlow_Error_Retry" sourceRef="Boundary_PaymentError" targetRef="SubTask_IncrementRetry"/>
+      <bpmn:sequenceFlow id="SubFlow_Increment_Gateway" sourceRef="SubTask_IncrementRetry" targetRef="SubGateway_RetryCheck"/>
+      <bpmn:sequenceFlow id="SubFlow_Retry" name="Yes" sourceRef="SubGateway_RetryCheck" targetRef="SubTask_ChargePayment">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${retryCount &lt; 3}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SubFlow_GiveUp" name="No" sourceRef="SubGateway_RetryCheck" targetRef="SubEnd_Error"/>
+    </bpmn:subProcess>
+
+    <bpmn:boundaryEvent id="Boundary_SubprocessError" name="Payment Failed" attachedToRef="SubProcess_ProcessPayment">
+      <bpmn:errorEventDefinition errorRef="Error_PaymentFailed"/>
+      <bpmn:outgoing>Flow_PaymentFailed</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="Task_RefundCustomer" name="Refund Customer" camunda:type="external" camunda:topic="refund">
+      <bpmn:incoming>Flow_PaymentFailed</bpmn:incoming>
+      <bpmn:outgoing>Flow_Refund_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_PaymentFailed" name="Payment Failed">
+      <bpmn:incoming>Flow_Refund_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="Task_ReserveItems" name="Reserve Items" camunda:type="external" camunda:topic="reserveStock">
+      <bpmn:incoming>Flow_PaymentComplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_Reserve_Pack</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_PackOrder" name="Pack Order">
+      <bpmn:incoming>Flow_Reserve_Pack</bpmn:incoming>
+      <bpmn:outgoing>Flow_Pack_Ship</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_ShipOrder" name="Ship Order" camunda:type="external" camunda:topic="shipment">
+      <bpmn:incoming>Flow_Pack_Ship</bpmn:incoming>
+      <bpmn:outgoing>Flow_Ship_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_NotifySuccess" name="Notify Success" camunda:type="external" camunda:topic="notifyCustomer">
+      <bpmn:incoming>Flow_Ship_Notify</bpmn:incoming>
+      <bpmn:outgoing>Flow_NotifySuccess_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_OrderCompleted" name="Order Completed">
+      <bpmn:incoming>Flow_NotifySuccess_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Main Process Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_Validate" sourceRef="Start_OrderReceived" targetRef="Task_ValidateOrder"/>
+    <bpmn:sequenceFlow id="Flow_Validate_Gateway" sourceRef="Task_ValidateOrder" targetRef="Gateway_ValidOrder"/>
+    <bpmn:sequenceFlow id="Flow_Valid" name="Yes" sourceRef="Gateway_ValidOrder" targetRef="Gateway_ParallelCheck"/>
+    <bpmn:sequenceFlow id="Flow_Invalid" name="No" sourceRef="Gateway_ValidOrder" targetRef="Task_NotifyRejection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!orderValid}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NotifyRejection_End" sourceRef="Task_NotifyRejection" targetRef="End_OrderRejected"/>
+    <bpmn:sequenceFlow id="Flow_ToInventory" sourceRef="Gateway_ParallelCheck" targetRef="Task_CheckInventory"/>
+    <bpmn:sequenceFlow id="Flow_ToCredit" sourceRef="Gateway_ParallelCheck" targetRef="Task_VerifyCredit"/>
+    <bpmn:sequenceFlow id="Flow_InventoryDone" sourceRef="Task_CheckInventory" targetRef="Gateway_JoinChecks"/>
+    <bpmn:sequenceFlow id="Flow_CreditDone" sourceRef="Task_VerifyCredit" targetRef="Gateway_JoinChecks"/>
+    <bpmn:sequenceFlow id="Flow_ChecksComplete" sourceRef="Gateway_JoinChecks" targetRef="Gateway_AllChecksPassed"/>
+    <bpmn:sequenceFlow id="Flow_ChecksPassed" name="Yes" sourceRef="Gateway_AllChecksPassed" targetRef="SubProcess_ProcessPayment"/>
+    <bpmn:sequenceFlow id="Flow_ChecksFailed" name="No" sourceRef="Gateway_AllChecksPassed" targetRef="Task_NotifyRejection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!checksPass}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_PaymentComplete" sourceRef="SubProcess_ProcessPayment" targetRef="Task_ReserveItems"/>
+    <bpmn:sequenceFlow id="Flow_PaymentFailed" sourceRef="Boundary_SubprocessError" targetRef="Task_RefundCustomer"/>
+    <bpmn:sequenceFlow id="Flow_Refund_End" sourceRef="Task_RefundCustomer" targetRef="End_PaymentFailed"/>
+    <bpmn:sequenceFlow id="Flow_Reserve_Pack" sourceRef="Task_ReserveItems" targetRef="Task_PackOrder"/>
+    <bpmn:sequenceFlow id="Flow_Pack_Ship" sourceRef="Task_PackOrder" targetRef="Task_ShipOrder"/>
+    <bpmn:sequenceFlow id="Flow_Ship_Notify" sourceRef="Task_ShipOrder" targetRef="Task_NotifySuccess"/>
+    <bpmn:sequenceFlow id="Flow_NotifySuccess_End" sourceRef="Task_NotifySuccess" targetRef="End_OrderCompleted"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_OnlineOrder">
+
+      <!-- Pool -->
+      <bpmndi:BPMNShape id="Participant_OrderProcessing_di" bpmnElement="Participant_OrderProcessing" isHorizontal="true">
+        <dc:Bounds x="130" y="50" width="2530" height="790"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Lanes: heights calculated using formula -->
+      <!-- Customer: 200px (no branches) -->
+      <!-- Operations: 200 + (1 * 120 * 2) = 440px (2 parallel branches) -->
+      <!-- Finance: 300px (subprocess) -->
+
+      <bpmndi:BPMNShape id="Lane_Customer_di" bpmnElement="Lane_Customer" isHorizontal="true">
+        <dc:Bounds x="160" y="50" width="2500" height="200"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Lane_Operations_di" bpmnElement="Lane_Operations" isHorizontal="true">
+        <dc:Bounds x="160" y="250" width="2500" height="440"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Lane_Finance_di" bpmnElement="Lane_Finance" isHorizontal="true">
+        <dc:Bounds x="160" y="690" width="2500" height="150"/>
+      </bpmndi:BPMNShape>
+
+      <!-- CUSTOMER LANE (y center = 150) -->
+
+      <!-- Level 0: Start -->
+      <bpmndi:BPMNShape id="Start_OrderReceived_di" bpmnElement="Start_OrderReceived">
+        <dc:Bounds x="220" y="132" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="199" y="175" width="78" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Level 1: Validate -->
+      <bpmndi:BPMNShape id="Task_ValidateOrder_di" bpmnElement="Task_ValidateOrder">
+        <dc:Bounds x="320" y="110" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Level 2: Valid Gateway -->
+      <bpmndi:BPMNShape id="Gateway_ValidOrder_di" bpmnElement="Gateway_ValidOrder" isMarkerVisible="true">
+        <dc:Bounds x="485" y="125" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="475" y="95" width="62" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Rejection Path (far right) -->
+      <bpmndi:BPMNShape id="Task_NotifyRejection_di" bpmnElement="Task_NotifyRejection">
+        <dc:Bounds x="2270" y="110" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="End_OrderRejected_di" bpmnElement="End_OrderRejected">
+        <dc:Bounds x="2442" y="132" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2421" y="175" width="78" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Success Path -->
+      <bpmndi:BPMNShape id="Task_NotifySuccess_di" bpmnElement="Task_NotifySuccess">
+        <dc:Bounds x="2270" y="110" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="End_OrderCompleted_di" bpmnElement="End_OrderCompleted">
+        <dc:Bounds x="2442" y="132" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2417" y="175" width="86" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- OPERATIONS LANE (y center = 470) -->
+
+      <!-- Level 3: Parallel Fork -->
+      <bpmndi:BPMNShape id="Gateway_ParallelCheck_di" bpmnElement="Gateway_ParallelCheck">
+        <dc:Bounds x="485" y="445" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="475" y="415" width="63" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Level 4: Parallel Tasks (y = 470 ± 60) -->
+      <bpmndi:BPMNShape id="Task_CheckInventory_di" bpmnElement="Task_CheckInventory">
+        <dc:Bounds x="625" y="370" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_VerifyCredit_di" bpmnElement="Task_VerifyCredit">
+        <dc:Bounds x="625" y="510" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Level 5: Join -->
+      <bpmndi:BPMNShape id="Gateway_JoinChecks_di" bpmnElement="Gateway_JoinChecks">
+        <dc:Bounds x="795" y="445" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="785" y="415" width="64" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Level 6: Checks Passed Gateway -->
+      <bpmndi:BPMNShape id="Gateway_AllChecksPassed_di" bpmnElement="Gateway_AllChecksPassed" isMarkerVisible="true">
+        <dc:Bounds x="915" y="445" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="905" y="405" width="70" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Level 8-11: Fulfillment Tasks -->
+      <bpmndi:BPMNShape id="Task_ReserveItems_di" bpmnElement="Task_ReserveItems">
+        <dc:Bounds x="1700" y="430" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_PackOrder_di" bpmnElement="Task_PackOrder">
+        <dc:Bounds x="1890" y="430" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ShipOrder_di" bpmnElement="Task_ShipOrder">
+        <dc:Bounds x="2080" y="430" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- FINANCE LANE (y center = 765) -->
+
+      <!-- Level 7: Payment Subprocess (larger size, proper padding) -->
+      <bpmndi:BPMNShape id="SubProcess_ProcessPayment_di" bpmnElement="SubProcess_ProcessPayment" isExpanded="true">
+        <dc:Bounds x="1055" y="700" width="590" height="130"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocess internal elements (relative to subprocess bounds) -->
+      <bpmndi:BPMNShape id="SubStart_Payment_di" bpmnElement="SubStart_Payment">
+        <dc:Bounds x="1085" y="747" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1066" y="790" width="74" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="SubTask_CalculateTotal_di" bpmnElement="SubTask_CalculateTotal">
+        <dc:Bounds x="1165" y="725" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="SubTask_ChargePayment_di" bpmnElement="SubTask_ChargePayment">
+        <dc:Bounds x="1315" y="725" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="SubTask_ConfirmPayment_di" bpmnElement="SubTask_ConfirmPayment">
+        <dc:Bounds x="1465" y="725" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="SubEnd_Success_di" bpmnElement="SubEnd_Success">
+        <dc:Bounds x="1597" y="747" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1592" y="790" width="46" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary Error on Charge Task -->
+      <bpmndi:BPMNShape id="Boundary_PaymentError_di" bpmnElement="Boundary_PaymentError">
+        <dc:Bounds x="1397" y="787" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1340" y="826" width="73" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Retry Logic (below main flow in subprocess) -->
+      <bpmndi:BPMNShape id="SubTask_IncrementRetry_di" bpmnElement="SubTask_IncrementRetry">
+        <dc:Bounds x="1315" y="750" width="100" height="60"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="SubGateway_RetryCheck_di" bpmnElement="SubGateway_RetryCheck" isMarkerVisible="true">
+        <dc:Bounds x="1215" y="755" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1205" y="812" width="65" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="SubEnd_Error_di" bpmnElement="SubEnd_Error">
+        <dc:Bounds x="1127" y="762" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1107" y="805" width="76" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocess Error Boundary -->
+      <bpmndi:BPMNShape id="Boundary_SubprocessError_di" bpmnElement="Boundary_SubprocessError">
+        <dc:Bounds x="1332" y="812" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1275" y="851" width="73" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Refund Path -->
+      <bpmndi:BPMNShape id="Task_RefundCustomer_di" bpmnElement="Task_RefundCustomer">
+        <dc:Bounds x="1700" y="725" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="End_PaymentFailed_di" bpmnElement="End_PaymentFailed">
+        <dc:Bounds x="1872" y="747" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1850" y="790" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- EDGES (FLOWS) -->
+
+      <!-- Customer Lane Flows -->
+      <bpmndi:BPMNEdge id="Flow_Start_Validate_di" bpmnElement="Flow_Start_Validate">
+        <di:waypoint x="256" y="150"/>
+        <di:waypoint x="320" y="150"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Validate_Gateway_di" bpmnElement="Flow_Validate_Gateway">
+        <di:waypoint x="420" y="150"/>
+        <di:waypoint x="485" y="150"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Valid flow goes down to Operations lane -->
+      <bpmndi:BPMNEdge id="Flow_Valid_di" bpmnElement="Flow_Valid">
+        <di:waypoint x="510" y="175"/>
+        <di:waypoint x="510" y="445"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="516" y="300" width="18" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <!-- Invalid flow across top -->
+      <bpmndi:BPMNEdge id="Flow_Invalid_di" bpmnElement="Flow_Invalid">
+        <di:waypoint x="535" y="150"/>
+        <di:waypoint x="2270" y="150"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1395" y="132" width="15" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_NotifyRejection_End_di" bpmnElement="Flow_NotifyRejection_End">
+        <di:waypoint x="2370" y="150"/>
+        <di:waypoint x="2442" y="150"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Operations Lane Flows -->
+      <bpmndi:BPMNEdge id="Flow_ToInventory_di" bpmnElement="Flow_ToInventory">
+        <di:waypoint x="510" y="445"/>
+        <di:waypoint x="510" y="410"/>
+        <di:waypoint x="625" y="410"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ToCredit_di" bpmnElement="Flow_ToCredit">
+        <di:waypoint x="510" y="495"/>
+        <di:waypoint x="510" y="550"/>
+        <di:waypoint x="625" y="550"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_InventoryDone_di" bpmnElement="Flow_InventoryDone">
+        <di:waypoint x="725" y="410"/>
+        <di:waypoint x="820" y="410"/>
+        <di:waypoint x="820" y="445"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_CreditDone_di" bpmnElement="Flow_CreditDone">
+        <di:waypoint x="725" y="550"/>
+        <di:waypoint x="820" y="550"/>
+        <di:waypoint x="820" y="495"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ChecksComplete_di" bpmnElement="Flow_ChecksComplete">
+        <di:waypoint x="845" y="470"/>
+        <di:waypoint x="915" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Checks passed goes down to Finance -->
+      <bpmndi:BPMNEdge id="Flow_ChecksPassed_di" bpmnElement="Flow_ChecksPassed">
+        <di:waypoint x="940" y="495"/>
+        <di:waypoint x="940" y="765"/>
+        <di:waypoint x="1055" y="765"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="946" y="625" width="18" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <!-- Checks failed goes up to Customer (Rejection) -->
+      <bpmndi:BPMNEdge id="Flow_ChecksFailed_di" bpmnElement="Flow_ChecksFailed">
+        <di:waypoint x="965" y="470"/>
+        <di:waypoint x="2200" y="470"/>
+        <di:waypoint x="2200" y="150"/>
+        <di:waypoint x="2270" y="150"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1575" y="452" width="15" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <!-- Payment complete goes back up to Operations -->
+      <bpmndi:BPMNEdge id="Flow_PaymentComplete_di" bpmnElement="Flow_PaymentComplete">
+        <di:waypoint x="1645" y="765"/>
+        <di:waypoint x="1672" y="765"/>
+        <di:waypoint x="1672" y="470"/>
+        <di:waypoint x="1700" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Fulfillment chain -->
+      <bpmndi:BPMNEdge id="Flow_Reserve_Pack_di" bpmnElement="Flow_Reserve_Pack">
+        <di:waypoint x="1800" y="470"/>
+        <di:waypoint x="1890" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Pack_Ship_di" bpmnElement="Flow_Pack_Ship">
+        <di:waypoint x="1990" y="470"/>
+        <di:waypoint x="2080" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Ship goes up to Customer for notification -->
+      <bpmndi:BPMNEdge id="Flow_Ship_Notify_di" bpmnElement="Flow_Ship_Notify">
+        <di:waypoint x="2180" y="470"/>
+        <di:waypoint x="2320" y="470"/>
+        <di:waypoint x="2320" y="190"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_NotifySuccess_End_di" bpmnElement="Flow_NotifySuccess_End">
+        <di:waypoint x="2370" y="150"/>
+        <di:waypoint x="2442" y="150"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Payment failed flow -->
+      <bpmndi:BPMNEdge id="Flow_PaymentFailed_di" bpmnElement="Flow_PaymentFailed">
+        <di:waypoint x="1350" y="848"/>
+        <di:waypoint x="1350" y="870"/>
+        <di:waypoint x="1750" y="870"/>
+        <di:waypoint x="1750" y="805"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Refund_End_di" bpmnElement="Flow_Refund_End">
+        <di:waypoint x="1800" y="765"/>
+        <di:waypoint x="1872" y="765"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Subprocess Internal Flows -->
+      <bpmndi:BPMNEdge id="SubFlow_Start_Calculate_di" bpmnElement="SubFlow_Start_Calculate">
+        <di:waypoint x="1121" y="765"/>
+        <di:waypoint x="1165" y="765"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="SubFlow_Calculate_Charge_di" bpmnElement="SubFlow_Calculate_Charge">
+        <di:waypoint x="1265" y="765"/>
+        <di:waypoint x="1315" y="765"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="SubFlow_Charge_Confirm_di" bpmnElement="SubFlow_Charge_Confirm">
+        <di:waypoint x="1415" y="765"/>
+        <di:waypoint x="1465" y="765"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="SubFlow_Confirm_End_di" bpmnElement="SubFlow_Confirm_End">
+        <di:waypoint x="1565" y="765"/>
+        <di:waypoint x="1597" y="765"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Error boundary to retry logic -->
+      <bpmndi:BPMNEdge id="SubFlow_Error_Retry_di" bpmnElement="SubFlow_Error_Retry">
+        <di:waypoint x="1415" y="823"/>
+        <di:waypoint x="1415" y="810"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="SubFlow_Increment_Gateway_di" bpmnElement="SubFlow_Increment_Gateway">
+        <di:waypoint x="1315" y="780"/>
+        <di:waypoint x="1265" y="780"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Retry loop back to charge -->
+      <bpmndi:BPMNEdge id="SubFlow_Retry_di" bpmnElement="SubFlow_Retry">
+        <di:waypoint x="1240" y="755"/>
+        <di:waypoint x="1240" y="735"/>
+        <di:waypoint x="1365" y="735"/>
+        <di:waypoint x="1365" y="725"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1246" y="738" width="18" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <!-- Give up to error end -->
+      <bpmndi:BPMNEdge id="SubFlow_GiveUp_di" bpmnElement="SubFlow_GiveUp">
+        <di:waypoint x="1215" y="780"/>
+        <di:waypoint x="1163" y="780"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1184" y="762" width="15" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

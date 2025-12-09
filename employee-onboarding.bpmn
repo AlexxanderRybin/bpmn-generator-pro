@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_Onboarding" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.41.0">
+  <bpmn:error id="Error_NoShow" name="NoShowError" errorCode="EMPLOYEE_NO_SHOW" />
+  <bpmn:collaboration id="Collaboration_Onboarding">
+    <bpmn:participant id="Participant_Company" name="Company Onboarding Process" processRef="Process_Onboarding" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Onboarding" name="Employee Onboarding" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Manager" name="Direct Manager">
+        <bpmn:flowNodeRef>Task_AssignMentor</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PrepareWelcome</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FirstDayWelcome</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CompleteOnboarding</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AddressConcerns</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Satisfied</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_OnboardingSuccess</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_IT" name="IT Department">
+        <bpmn:flowNodeRef>Gateway_ParallelStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CreateAccounts</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SetupWorkstation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ParallelJoin</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_HR" name="Human Resources">
+        <bpmn:flowNodeRef>Task_ConductOrientation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ScheduleOrientation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RescheduleOrientation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PrepareDocuments</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_DocsComplete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RequestAdditional</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Start_EmployeeHired</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_OnboardingCancelled</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_NoShow</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:userTask id="Task_AssignMentor" name="Assign Mentor">
+      <bpmn:incoming>Flow_ToAssignMentor</bpmn:incoming>
+      <bpmn:outgoing>Flow_Mentor_Welcome</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_PrepareWelcome" name="Prepare Welcome Pack">
+      <bpmn:incoming>Flow_Mentor_Welcome</bpmn:incoming>
+      <bpmn:outgoing>Flow_Welcome_Join</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_FirstDayWelcome" name="First Day Welcome">
+      <bpmn:incoming>Flow_Join_FirstDay</bpmn:incoming>
+      <bpmn:outgoing>Flow_FirstDay_Check</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_ConductOrientation" name="Conduct Orientation">
+      <bpmn:incoming>Flow_Schedule_Conduct</bpmn:incoming>
+      <bpmn:outgoing>Flow_Orientation_Join</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_ScheduleOrientation" name="Schedule Orientation">
+      <bpmn:incoming>Flow_ToSchedule</bpmn:incoming>
+      <bpmn:incoming>Flow_Reschedule_Schedule</bpmn:incoming>
+      <bpmn:outgoing>Flow_Schedule_Conduct</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_RescheduleOrientation" name="Reschedule Orientation">
+      <bpmn:incoming>Flow_NoShow_Reschedule</bpmn:incoming>
+      <bpmn:outgoing>Flow_Reschedule_Schedule</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_PrepareDocuments" name="Prepare Employment Documents">
+      <bpmn:incoming>Flow_Start_Prepare</bpmn:incoming>
+      <bpmn:incoming>Flow_Additional_Prepare</bpmn:incoming>
+      <bpmn:outgoing>Flow_Prepare_Check</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_DocsComplete" name="Documents Complete?" default="Flow_DocsComplete">
+      <bpmn:incoming>Flow_Prepare_Check</bpmn:incoming>
+      <bpmn:outgoing>Flow_DocsComplete</bpmn:outgoing>
+      <bpmn:outgoing>Flow_DocsIncomplete</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_RequestAdditional" name="Request Additional Info">
+      <bpmn:incoming>Flow_DocsIncomplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_Additional_Prepare</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:startEvent id="Start_EmployeeHired" name="New Employee Hired">
+      <bpmn:outgoing>Flow_Start_Prepare</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Gateway_ParallelStart" name="Start Onboarding Tasks">
+      <bpmn:incoming>Flow_DocsComplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSchedule</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToCreateAccounts</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToAssignMentor</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_CreateAccounts" name="Create System Accounts" camunda:type="external" camunda:topic="createAccounts">
+      <bpmn:incoming>Flow_ToCreateAccounts</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accounts_Setup</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_SetupWorkstation" name="Setup Workstation">
+      <bpmn:incoming>Flow_Accounts_Setup</bpmn:incoming>
+      <bpmn:outgoing>Flow_Setup_Join</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:parallelGateway id="Gateway_ParallelJoin" name="Sync All Tasks">
+      <bpmn:incoming>Flow_Orientation_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Setup_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Welcome_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_FirstDay</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="Task_CompleteOnboarding" name="Complete Onboarding">
+      <bpmn:incoming>Flow_Satisfied</bpmn:incoming>
+      <bpmn:outgoing>Flow_Complete_End</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_AddressConcerns" name="Address Employee Concerns">
+      <bpmn:incoming>Flow_HasConcerns</bpmn:incoming>
+      <bpmn:outgoing>Flow_Concerns_Check</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_Satisfied" name="Employee Satisfied?" default="Flow_Satisfied">
+      <bpmn:incoming>Flow_FirstDay_Check</bpmn:incoming>
+      <bpmn:incoming>Flow_Concerns_Check</bpmn:incoming>
+      <bpmn:outgoing>Flow_Satisfied</bpmn:outgoing>
+      <bpmn:outgoing>Flow_HasConcerns</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_OnboardingSuccess" name="Onboarding Completed">
+      <bpmn:incoming>Flow_Complete_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_OnboardingCancelled" name="Onboarding Cancelled">
+      <bpmn:incoming>Flow_Cancel</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:boundaryEvent id="Boundary_NoShow" name="Employee No-Show" attachedToRef="Task_ConductOrientation">
+      <bpmn:outgoing>Flow_NoShow_Reschedule</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_NoShow" />
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_ToAssignMentor" sourceRef="Gateway_ParallelStart" targetRef="Task_AssignMentor" />
+    <bpmn:sequenceFlow id="Flow_Mentor_Welcome" sourceRef="Task_AssignMentor" targetRef="Task_PrepareWelcome" />
+    <bpmn:sequenceFlow id="Flow_Welcome_Join" sourceRef="Task_PrepareWelcome" targetRef="Gateway_ParallelJoin" />
+    <bpmn:sequenceFlow id="Flow_Join_FirstDay" sourceRef="Gateway_ParallelJoin" targetRef="Task_FirstDayWelcome" />
+    <bpmn:sequenceFlow id="Flow_FirstDay_Check" sourceRef="Task_FirstDayWelcome" targetRef="Gateway_Satisfied" />
+    <bpmn:sequenceFlow id="Flow_Schedule_Conduct" sourceRef="Task_ScheduleOrientation" targetRef="Task_ConductOrientation" />
+    <bpmn:sequenceFlow id="Flow_Orientation_Join" sourceRef="Task_ConductOrientation" targetRef="Gateway_ParallelJoin" />
+    <bpmn:sequenceFlow id="Flow_ToSchedule" sourceRef="Gateway_ParallelStart" targetRef="Task_ScheduleOrientation" />
+    <bpmn:sequenceFlow id="Flow_Reschedule_Schedule" sourceRef="Task_RescheduleOrientation" targetRef="Task_ScheduleOrientation" />
+    <bpmn:sequenceFlow id="Flow_NoShow_Reschedule" sourceRef="Boundary_NoShow" targetRef="Task_RescheduleOrientation" />
+    <bpmn:sequenceFlow id="Flow_Start_Prepare" sourceRef="Start_EmployeeHired" targetRef="Task_PrepareDocuments" />
+    <bpmn:sequenceFlow id="Flow_Additional_Prepare" sourceRef="Task_RequestAdditional" targetRef="Task_PrepareDocuments" />
+    <bpmn:sequenceFlow id="Flow_Prepare_Check" sourceRef="Task_PrepareDocuments" targetRef="Gateway_DocsComplete" />
+    <bpmn:sequenceFlow id="Flow_DocsComplete" name="Yes" sourceRef="Gateway_DocsComplete" targetRef="Gateway_ParallelStart" />
+    <bpmn:sequenceFlow id="Flow_DocsIncomplete" name="No" sourceRef="Gateway_DocsComplete" targetRef="Task_RequestAdditional">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!docsComplete}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Cancel" sourceRef="Task_RequestAdditional" targetRef="End_OnboardingCancelled">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${cancelled}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToCreateAccounts" sourceRef="Gateway_ParallelStart" targetRef="Task_CreateAccounts" />
+    <bpmn:sequenceFlow id="Flow_Accounts_Setup" sourceRef="Task_CreateAccounts" targetRef="Task_SetupWorkstation" />
+    <bpmn:sequenceFlow id="Flow_Setup_Join" sourceRef="Task_SetupWorkstation" targetRef="Gateway_ParallelJoin" />
+    <bpmn:sequenceFlow id="Flow_Satisfied" name="Yes" sourceRef="Gateway_Satisfied" targetRef="Task_CompleteOnboarding" />
+    <bpmn:sequenceFlow id="Flow_Complete_End" sourceRef="Task_CompleteOnboarding" targetRef="End_OnboardingSuccess" />
+    <bpmn:sequenceFlow id="Flow_HasConcerns" name="No" sourceRef="Gateway_Satisfied" targetRef="Task_AddressConcerns">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!satisfied}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Concerns_Check" sourceRef="Task_AddressConcerns" targetRef="Gateway_Satisfied" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Onboarding">
+      <bpmndi:BPMNShape id="Participant_Company_di" bpmnElement="Participant_Company" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="1560" height="880" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Manager_di" bpmnElement="Lane_Manager" isHorizontal="true">
+        <dc:Bounds x="150" y="670" width="1530" height="290" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_IT_di" bpmnElement="Lane_IT" isHorizontal="true">
+        <dc:Bounds x="150" y="480" width="1530" height="190" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_HR_di" bpmnElement="Lane_HR" isHorizontal="true">
+        <dc:Bounds x="150" y="80" width="1530" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AssignMentor_di" bpmnElement="Task_AssignMentor">
+        <dc:Bounds x="660" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PrepareWelcome_di" bpmnElement="Task_PrepareWelcome">
+        <dc:Bounds x="800" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FirstDayWelcome_di" bpmnElement="Task_FirstDayWelcome">
+        <dc:Bounds x="1070" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ConductOrientation_di" bpmnElement="Task_ConductOrientation">
+        <dc:Bounds x="800" y="250" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ScheduleOrientation_di" bpmnElement="Task_ScheduleOrientation">
+        <dc:Bounds x="660" y="250" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RescheduleOrientation_di" bpmnElement="Task_RescheduleOrientation">
+        <dc:Bounds x="830" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PrepareDocuments_di" bpmnElement="Task_PrepareDocuments">
+        <dc:Bounds x="290" y="250" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_DocsComplete_di" bpmnElement="Gateway_DocsComplete" isMarkerVisible="true">
+        <dc:Bounds x="445" y="265" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="505" y="276" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RequestAdditional_di" bpmnElement="Task_RequestAdditional">
+        <dc:Bounds x="420" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_EmployeeHired_di" bpmnElement="Start_EmployeeHired">
+        <dc:Bounds x="202" y="272" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="183" y="315" width="74" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ParallelStart_di" bpmnElement="Gateway_ParallelStart">
+        <dc:Bounds x="565" y="545" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="491" y="590.5" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateAccounts_di" bpmnElement="Task_CreateAccounts">
+        <dc:Bounds x="660" y="530" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SetupWorkstation_di" bpmnElement="Task_SetupWorkstation">
+        <dc:Bounds x="830" y="530" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ParallelJoin_di" bpmnElement="Gateway_ParallelJoin">
+        <dc:Bounds x="965" y="545" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1014" y="583" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CompleteOnboarding_di" bpmnElement="Task_CompleteOnboarding">
+        <dc:Bounds x="1410" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AddressConcerns_di" bpmnElement="Task_AddressConcerns">
+        <dc:Bounds x="1410" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Satisfied_di" bpmnElement="Gateway_Satisfied" isMarkerVisible="true">
+        <dc:Bounds x="1255" y="745" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1214.5" y="726" width="49" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_OnboardingSuccess_di" bpmnElement="End_OnboardingSuccess">
+        <dc:Bounds x="1592" y="882" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1581" y="925" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_OnboardingCancelled_di" bpmnElement="End_OnboardingCancelled">
+        <dc:Bounds x="1592" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1581" y="175" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_NoShow_di" bpmnElement="Boundary_NoShow">
+        <dc:Bounds x="862" y="312" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="895" y="346" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ToAssignMentor_di" bpmnElement="Flow_ToAssignMentor">
+        <di:waypoint x="590" y="595" />
+        <di:waypoint x="590" y="770" />
+        <di:waypoint x="660" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Mentor_Welcome_di" bpmnElement="Flow_Mentor_Welcome">
+        <di:waypoint x="760" y="770" />
+        <di:waypoint x="800" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Welcome_Join_di" bpmnElement="Flow_Welcome_Join">
+        <di:waypoint x="900" y="770" />
+        <di:waypoint x="990" y="770" />
+        <di:waypoint x="990" y="595" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Join_FirstDay_di" bpmnElement="Flow_Join_FirstDay">
+        <di:waypoint x="1015" y="570" />
+        <di:waypoint x="1120" y="570" />
+        <di:waypoint x="1120" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FirstDay_Check_di" bpmnElement="Flow_FirstDay_Check">
+        <di:waypoint x="1170" y="770" />
+        <di:waypoint x="1255" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Concerns_Check_di" bpmnElement="Flow_Concerns_Check">
+        <di:waypoint x="1410" y="770" />
+        <di:waypoint x="1305" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Satisfied_di" bpmnElement="Flow_Satisfied">
+        <di:waypoint x="1280" y="795" />
+        <di:waypoint x="1280" y="900" />
+        <di:waypoint x="1410" y="900" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1286" y="849" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_HasConcerns_di" bpmnElement="Flow_HasConcerns">
+        <di:waypoint x="1280" y="745" />
+        <di:waypoint x="1280" y="680" />
+        <di:waypoint x="1460" y="680" />
+        <di:waypoint x="1460" y="730" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1383" y="657" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Complete_End_di" bpmnElement="Flow_Complete_End">
+        <di:waypoint x="1510" y="900" />
+        <di:waypoint x="1592" y="900" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Schedule_Conduct_di" bpmnElement="Flow_Schedule_Conduct">
+        <di:waypoint x="760" y="290" />
+        <di:waypoint x="800" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Orientation_Join_di" bpmnElement="Flow_Orientation_Join">
+        <di:waypoint x="900" y="290" />
+        <di:waypoint x="990" y="290" />
+        <di:waypoint x="990" y="545" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToSchedule_di" bpmnElement="Flow_ToSchedule">
+        <di:waypoint x="590" y="545" />
+        <di:waypoint x="590" y="290" />
+        <di:waypoint x="660" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Reschedule_Schedule_di" bpmnElement="Flow_Reschedule_Schedule">
+        <di:waypoint x="830" y="430" />
+        <di:waypoint x="710" y="430" />
+        <di:waypoint x="710" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_NoShow_Reschedule_di" bpmnElement="Flow_NoShow_Reschedule">
+        <di:waypoint x="880" y="348" />
+        <di:waypoint x="880" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Start_Prepare_di" bpmnElement="Flow_Start_Prepare">
+        <di:waypoint x="238" y="290" />
+        <di:waypoint x="290" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Additional_Prepare_di" bpmnElement="Flow_Additional_Prepare">
+        <di:waypoint x="420" y="150" />
+        <di:waypoint x="340" y="150" />
+        <di:waypoint x="340" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Prepare_Check_di" bpmnElement="Flow_Prepare_Check">
+        <di:waypoint x="390" y="290" />
+        <di:waypoint x="445" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DocsComplete_di" bpmnElement="Flow_DocsComplete">
+        <di:waypoint x="470" y="315" />
+        <di:waypoint x="470" y="570" />
+        <di:waypoint x="565" y="570" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="476" y="422" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DocsIncomplete_di" bpmnElement="Flow_DocsIncomplete">
+        <di:waypoint x="470" y="265" />
+        <di:waypoint x="470" y="190" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="446" y="209" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cancel_di" bpmnElement="Flow_Cancel">
+        <di:waypoint x="520" y="150" />
+        <di:waypoint x="1592" y="150" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1014" y="242" width="35" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToCreateAccounts_di" bpmnElement="Flow_ToCreateAccounts">
+        <di:waypoint x="615" y="570" />
+        <di:waypoint x="660" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accounts_Setup_di" bpmnElement="Flow_Accounts_Setup">
+        <di:waypoint x="760" y="570" />
+        <di:waypoint x="830" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Setup_Join_di" bpmnElement="Flow_Setup_Join">
+        <di:waypoint x="930" y="570" />
+        <di:waypoint x="965" y="570" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

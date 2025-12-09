@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_InsuranceClaim" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Claude Code - BPMN Generator Pro" exporterVersion="3.1">
+  <bpmn:error id="Error_PaymentFailed" name="PaymentError" errorCode="PAYMENT_FAILED" />
+  <bpmn:error id="Error_AssessmentTimeout" name="TimeoutError" errorCode="ASSESSMENT_TIMEOUT" />
+  <bpmn:collaboration id="Collaboration_InsuranceClaim">
+    <bpmn:participant id="Participant_InsuranceCompany" name="Insurance Company" processRef="Process_ClaimProcessing" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_ClaimProcessing" name="Insurance Claim Processing" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Finance" name="Finance Department">
+        <bpmn:flowNodeRef>Task_ProcessPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RetryPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_RetryDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_PaymentFailed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_PaymentError</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_ClaimsAssessment" name="Claims Assessment">
+        <bpmn:flowNodeRef>Task_AssessDamage</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_VerifyCoverage</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_EscalateTimeout</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ManualApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ManagerDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_AssessmentTimeout</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_FraudDetection" name="Fraud Detection">
+        <bpmn:flowNodeRef>Task_CheckFraud</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_CustomerService" name="Customer Service">
+        <bpmn:flowNodeRef>Start_ClaimSubmitted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidateClaim</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ClaimValid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeRejections</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifyRejection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_ClaimRejected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ParallelChecks</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_SyncChecks</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AllChecksPassed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AmountDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifyCustomer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_ClaimPaid</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_ClaimSubmitted" name="Insurance Claim Submitted">
+      <bpmn:outgoing>Flow_Start_Validate</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_ValidateClaim" name="Validate Claim Information">
+      <bpmn:incoming>Flow_Start_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validate_Gateway</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_ClaimValid" name="Claim Valid?" default="Flow_Valid">
+      <bpmn:incoming>Flow_Validate_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_MergeRejections" name="Merge Rejection Paths">
+      <bpmn:incoming>Flow_Invalid</bpmn:incoming>
+      <bpmn:incoming>Flow_ChecksFailed</bpmn:incoming>
+      <bpmn:incoming>Flow_ManagerReject</bpmn:incoming>
+      <bpmn:incoming>Flow_RetryFailed</bpmn:incoming>
+      <bpmn:outgoing>Flow_Merge_Notify</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_NotifyRejection" name="Notify Rejection" camunda:type="external" camunda:topic="notifyCustomer">
+      <bpmn:incoming>Flow_Merge_Notify</bpmn:incoming>
+      <bpmn:outgoing>Flow_NotifyRejection_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_ClaimRejected" name="Claim Rejected">
+      <bpmn:incoming>Flow_NotifyRejection_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:parallelGateway id="Gateway_ParallelChecks" name="Start Verification Checks">
+      <bpmn:incoming>Flow_Valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToFraud</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToAssessment</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToCoverage</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_CheckFraud" name="Check Fraud Indicators" camunda:type="external" camunda:topic="fraudDetection">
+      <bpmn:incoming>Flow_ToFraud</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fraud_Sync</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_AssessDamage" name="Assess Damage Extent">
+      <bpmn:incoming>Flow_ToAssessment</bpmn:incoming>
+      <bpmn:incoming>Flow_TimeoutEscalated</bpmn:incoming>
+      <bpmn:outgoing>Flow_Assessment_Sync</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_VerifyCoverage" name="Verify Policy Coverage" camunda:type="external" camunda:topic="coverageCheck">
+      <bpmn:incoming>Flow_ToCoverage</bpmn:incoming>
+      <bpmn:outgoing>Flow_Coverage_Sync</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_SyncChecks" name="Synchronize Checks">
+      <bpmn:incoming>Flow_Fraud_Sync</bpmn:incoming>
+      <bpmn:incoming>Flow_Assessment_Sync</bpmn:incoming>
+      <bpmn:incoming>Flow_Coverage_Sync</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sync_Decision</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:exclusiveGateway id="Gateway_AllChecksPassed" name="All Checks Passed?" default="Flow_ChecksPassed">
+      <bpmn:incoming>Flow_Sync_Decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_ChecksPassed</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ChecksFailed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_AmountDecision" name="Claim Amount?" default="Flow_LowAmount">
+      <bpmn:incoming>Flow_ChecksPassed</bpmn:incoming>
+      <bpmn:outgoing>Flow_HighAmount</bpmn:outgoing>
+      <bpmn:outgoing>Flow_LowAmount</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_ManualApproval" name="Manual Approval Review">
+      <bpmn:incoming>Flow_HighAmount</bpmn:incoming>
+      <bpmn:outgoing>Flow_Manual_Gateway</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_ManagerDecision" name="Manager Approved?" default="Flow_ManagerApprove">
+      <bpmn:incoming>Flow_Manual_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_ManagerApprove</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ManagerReject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_MergeApproval">
+      <bpmn:incoming>Flow_LowAmount</bpmn:incoming>
+      <bpmn:incoming>Flow_ManagerApprove</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPayment</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_ProcessPayment" name="Process Payment" camunda:type="external" camunda:topic="processPayment">
+      <bpmn:incoming>Flow_ToPayment</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_RetryPayment" name="Retry Payment Manually">
+      <bpmn:incoming>Flow_PaymentError</bpmn:incoming>
+      <bpmn:outgoing>Flow_Retry_Decision</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_RetryDecision" name="Retry Successful?" default="Flow_RetrySuccess">
+      <bpmn:incoming>Flow_Retry_Decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_RetrySuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RetryFailed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_NotifyCustomer" name="Notify Claim Paid" camunda:type="external" camunda:topic="notifyCustomer">
+      <bpmn:incoming>Flow_Payment_Notify</bpmn:incoming>
+      <bpmn:incoming>Flow_RetrySuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_Notify_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_ClaimPaid" name="Claim Successfully Paid">
+      <bpmn:incoming>Flow_Notify_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_PaymentFailed" name="Payment Processing Failed">
+      <bpmn:incoming>Flow_NotifyRejection_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_EscalateTimeout" name="Escalate Delayed Assessment">
+      <bpmn:incoming>Flow_TimeoutError</bpmn:incoming>
+      <bpmn:outgoing>Flow_TimeoutEscalated</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="Boundary_PaymentError" name="Payment Failed" attachedToRef="Task_ProcessPayment">
+      <bpmn:outgoing>Flow_PaymentError</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_PaymentFailed" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="Boundary_AssessmentTimeout" name="Assessment Timeout (48h)" attachedToRef="Task_AssessDamage">
+      <bpmn:outgoing>Flow_TimeoutError</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_Start_Validate" sourceRef="Start_ClaimSubmitted" targetRef="Task_ValidateClaim" />
+    <bpmn:sequenceFlow id="Flow_Validate_Gateway" sourceRef="Task_ValidateClaim" targetRef="Gateway_ClaimValid" />
+    <bpmn:sequenceFlow id="Flow_Valid" name="Yes" sourceRef="Gateway_ClaimValid" targetRef="Gateway_ParallelChecks" />
+    <bpmn:sequenceFlow id="Flow_Invalid" name="No" sourceRef="Gateway_ClaimValid" targetRef="Gateway_MergeRejections">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!claimValid}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NotifyRejection_End" sourceRef="Task_NotifyRejection" targetRef="End_ClaimRejected" />
+    <bpmn:sequenceFlow id="Flow_ToFraud" sourceRef="Gateway_ParallelChecks" targetRef="Task_CheckFraud" />
+    <bpmn:sequenceFlow id="Flow_ToAssessment" sourceRef="Gateway_ParallelChecks" targetRef="Task_AssessDamage" />
+    <bpmn:sequenceFlow id="Flow_ToCoverage" sourceRef="Gateway_ParallelChecks" targetRef="Task_VerifyCoverage" />
+    <bpmn:sequenceFlow id="Flow_Fraud_Sync" sourceRef="Task_CheckFraud" targetRef="Gateway_SyncChecks" />
+    <bpmn:sequenceFlow id="Flow_Assessment_Sync" sourceRef="Task_AssessDamage" targetRef="Gateway_SyncChecks" />
+    <bpmn:sequenceFlow id="Flow_Coverage_Sync" sourceRef="Task_VerifyCoverage" targetRef="Gateway_SyncChecks" />
+    <bpmn:sequenceFlow id="Flow_Sync_Decision" sourceRef="Gateway_SyncChecks" targetRef="Gateway_AllChecksPassed" />
+    <bpmn:sequenceFlow id="Flow_ChecksPassed" name="Yes" sourceRef="Gateway_AllChecksPassed" targetRef="Gateway_AmountDecision" />
+    <bpmn:sequenceFlow id="Flow_ChecksFailed" name="No" sourceRef="Gateway_AllChecksPassed" targetRef="Gateway_MergeRejections">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!checksPass}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_HighAmount" name="High (> $10k)" sourceRef="Gateway_AmountDecision" targetRef="Task_ManualApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${claimAmount > 10000}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_LowAmount" name="Low (≤ $10k)" sourceRef="Gateway_AmountDecision" targetRef="Gateway_MergeApproval" />
+    <bpmn:sequenceFlow id="Flow_Manual_Gateway" sourceRef="Task_ManualApproval" targetRef="Gateway_ManagerDecision" />
+    <bpmn:sequenceFlow id="Flow_ManagerApprove" name="Yes" sourceRef="Gateway_ManagerDecision" targetRef="Gateway_MergeApproval" />
+    <bpmn:sequenceFlow id="Flow_ManagerReject" name="No" sourceRef="Gateway_ManagerDecision" targetRef="Gateway_MergeRejections">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!managerApproved}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToPayment" sourceRef="Gateway_MergeApproval" targetRef="Task_ProcessPayment" />
+    <bpmn:sequenceFlow id="Flow_Payment_Notify" sourceRef="Task_ProcessPayment" targetRef="Task_NotifyCustomer" />
+    <bpmn:sequenceFlow id="Flow_PaymentError" sourceRef="Boundary_PaymentError" targetRef="Task_RetryPayment" />
+    <bpmn:sequenceFlow id="Flow_Retry_Decision" sourceRef="Task_RetryPayment" targetRef="Gateway_RetryDecision" />
+    <bpmn:sequenceFlow id="Flow_RetrySuccess" name="Yes" sourceRef="Gateway_RetryDecision" targetRef="Task_NotifyCustomer" />
+    <bpmn:sequenceFlow id="Flow_RetryFailed" name="No" sourceRef="Gateway_RetryDecision" targetRef="Gateway_MergeRejections">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!retrySuccessful}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Merge_Notify" sourceRef="Gateway_MergeRejections" targetRef="Task_NotifyRejection" />
+    <bpmn:sequenceFlow id="Flow_Notify_End" sourceRef="Task_NotifyCustomer" targetRef="End_ClaimPaid" />
+    <bpmn:sequenceFlow id="Flow_TimeoutError" sourceRef="Boundary_AssessmentTimeout" targetRef="Task_EscalateTimeout" />
+    <bpmn:sequenceFlow id="Flow_TimeoutEscalated" sourceRef="Task_EscalateTimeout" targetRef="Task_AssessDamage" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_InsuranceClaim">
+      <bpmndi:BPMNShape id="Participant_InsuranceCompany_di" bpmnElement="Participant_InsuranceCompany" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="1840" height="1020" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Finance_di" bpmnElement="Lane_Finance" isHorizontal="true">
+        <dc:Bounds x="150" y="880" width="1810" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_ClaimsAssessment_di" bpmnElement="Lane_ClaimsAssessment" isHorizontal="true">
+        <dc:Bounds x="150" y="580" width="1810" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_FraudDetection_di" bpmnElement="Lane_FraudDetection" isHorizontal="true">
+        <dc:Bounds x="150" y="430" width="1810" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_CustomerService_di" bpmnElement="Lane_CustomerService" isHorizontal="true">
+        <dc:Bounds x="150" y="80" width="1810" height="350" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_ClaimSubmitted_di" bpmnElement="Start_ClaimSubmitted">
+        <dc:Bounds x="202" y="237" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="183" y="280" width="74" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ValidateClaim_di" bpmnElement="Task_ValidateClaim">
+        <dc:Bounds x="290" y="215" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ClaimValid_di" bpmnElement="Gateway_ClaimValid" isMarkerVisible="true">
+        <dc:Bounds x="445" y="230" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="435" y="200" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_MergeRejections_di" bpmnElement="Gateway_MergeRejections" isMarkerVisible="true">
+        <dc:Bounds x="1480" y="140" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1464" y="110" width="82" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NotifyRejection_di" bpmnElement="Task_NotifyRejection">
+        <dc:Bounds x="1590" y="125" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ClaimRejected_di" bpmnElement="End_ClaimRejected">
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1765" y="155" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+        <dc:Bounds x="1782" y="147" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ParallelChecks_di" bpmnElement="Gateway_ParallelChecks">
+        <dc:Bounds x="565" y="230" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="547" y="287" width="86" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CheckFraud_di" bpmnElement="Task_CheckFraud">
+        <dc:Bounds x="680" y="465" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AssessDamage_di" bpmnElement="Task_AssessDamage">
+        <dc:Bounds x="680" y="685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_VerifyCoverage_di" bpmnElement="Task_VerifyCoverage">
+        <dc:Bounds x="680" y="800" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_SyncChecks_di" bpmnElement="Gateway_SyncChecks">
+        <dc:Bounds x="855" y="230" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="840" y="287" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AllChecksPassed_di" bpmnElement="Gateway_AllChecksPassed" isMarkerVisible="true">
+        <dc:Bounds x="1005" y="230" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1004" y="191" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AmountDecision_di" bpmnElement="Gateway_AmountDecision" isMarkerVisible="true">
+        <dc:Bounds x="1155" y="230" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1139" y="200" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ManualApproval_di" bpmnElement="Task_ManualApproval">
+        <dc:Bounds x="1130" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ManagerDecision_di" bpmnElement="Gateway_ManagerDecision" isMarkerVisible="true">
+        <dc:Bounds x="1305" y="665" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1301" y="625" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_MergeApproval_di" bpmnElement="Gateway_MergeApproval" isMarkerVisible="true">
+        <dc:Bounds x="1305" y="230" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessPayment_di" bpmnElement="Task_ProcessPayment">
+        <dc:Bounds x="1280" y="950" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RetryPayment_di" bpmnElement="Task_RetryPayment">
+        <dc:Bounds x="1470" y="950" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_RetryDecision_di" bpmnElement="Gateway_RetryDecision" isMarkerVisible="true">
+        <dc:Bounds x="1645" y="965" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1643" y="925" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NotifyCustomer_di" bpmnElement="Task_NotifyCustomer">
+        <dc:Bounds x="1620" y="325" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ClaimPaid_di" bpmnElement="End_ClaimPaid">
+        <dc:Bounds x="1782" y="347" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1771" y="390" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_PaymentFailed_di" bpmnElement="End_PaymentFailed">
+        <dc:Bounds x="1782" y="147" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1765" y="190" width="71" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EscalateTimeout_di" bpmnElement="Task_EscalateTimeout">
+        <dc:Bounds x="870" y="785" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_PaymentError_di" bpmnElement="Boundary_PaymentError">
+        <dc:Bounds x="1362" y="1012" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1402" y="1035" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_AssessmentTimeout_di" bpmnElement="Boundary_AssessmentTimeout">
+        <dc:Bounds x="762" y="747" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="800" y="768" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_Validate_di" bpmnElement="Flow_Start_Validate">
+        <di:waypoint x="238" y="255" />
+        <di:waypoint x="290" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Validate_Gateway_di" bpmnElement="Flow_Validate_Gateway">
+        <di:waypoint x="390" y="255" />
+        <di:waypoint x="445" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Valid_di" bpmnElement="Flow_Valid">
+        <di:waypoint x="495" y="255" />
+        <di:waypoint x="565" y="255" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="522" y="237" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Invalid_di" bpmnElement="Flow_Invalid">
+        <di:waypoint x="470" y="230" />
+        <di:waypoint x="470" y="165" />
+        <di:waypoint x="1480" y="165" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="481" y="195" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Merge_Notify_di" bpmnElement="Flow_Merge_Notify">
+        <di:waypoint x="1530" y="165" />
+        <di:waypoint x="1590" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_NotifyRejection_End_di" bpmnElement="Flow_NotifyRejection_End">
+        <di:waypoint x="1690" y="165" />
+        <di:waypoint x="1782" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToFraud_di" bpmnElement="Flow_ToFraud">
+        <di:waypoint x="590" y="280" />
+        <di:waypoint x="590" y="505" />
+        <di:waypoint x="680" y="505" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToAssessment_di" bpmnElement="Flow_ToAssessment">
+        <di:waypoint x="590" y="280" />
+        <di:waypoint x="590" y="725" />
+        <di:waypoint x="680" y="725" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToCoverage_di" bpmnElement="Flow_ToCoverage">
+        <di:waypoint x="590" y="280" />
+        <di:waypoint x="590" y="840" />
+        <di:waypoint x="680" y="840" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Fraud_Sync_di" bpmnElement="Flow_Fraud_Sync">
+        <di:waypoint x="780" y="505" />
+        <di:waypoint x="880" y="505" />
+        <di:waypoint x="880" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Assessment_Sync_di" bpmnElement="Flow_Assessment_Sync">
+        <di:waypoint x="780" y="725" />
+        <di:waypoint x="880" y="725" />
+        <di:waypoint x="880" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Coverage_Sync_di" bpmnElement="Flow_Coverage_Sync">
+        <di:waypoint x="780" y="840" />
+        <di:waypoint x="880" y="840" />
+        <di:waypoint x="880" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sync_Decision_di" bpmnElement="Flow_Sync_Decision">
+        <di:waypoint x="905" y="255" />
+        <di:waypoint x="1005" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ChecksPassed_di" bpmnElement="Flow_ChecksPassed">
+        <di:waypoint x="1055" y="255" />
+        <di:waypoint x="1155" y="255" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1097" y="237" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ChecksFailed_di" bpmnElement="Flow_ChecksFailed">
+        <di:waypoint x="1030" y="230" />
+        <di:waypoint x="1030" y="165" />
+        <di:waypoint x="1480" y="165" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1041" y="195" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_HighAmount_di" bpmnElement="Flow_HighAmount">
+        <di:waypoint x="1180" y="280" />
+        <di:waypoint x="1180" y="650" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1150" y="453" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_LowAmount_di" bpmnElement="Flow_LowAmount">
+        <di:waypoint x="1205" y="255" />
+        <di:waypoint x="1305" y="255" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1225" y="237" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Manual_Gateway_di" bpmnElement="Flow_Manual_Gateway">
+        <di:waypoint x="1230" y="690" />
+        <di:waypoint x="1305" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ManagerApprove_di" bpmnElement="Flow_ManagerApprove">
+        <di:waypoint x="1330" y="665" />
+        <di:waypoint x="1330" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1336" y="463" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ManagerReject_di" bpmnElement="Flow_ManagerReject">
+        <di:waypoint x="1355" y="690" />
+        <di:waypoint x="1400" y="690" />
+        <di:waypoint x="1400" y="165" />
+        <di:waypoint x="1480" y="165" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1411" y="418" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToPayment_di" bpmnElement="Flow_ToPayment">
+        <di:waypoint x="1330" y="280" />
+        <di:waypoint x="1330" y="950" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Payment_Notify_di" bpmnElement="Flow_Payment_Notify">
+        <di:waypoint x="1380" y="990" />
+        <di:waypoint x="1670" y="990" />
+        <di:waypoint x="1670" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PaymentError_di" bpmnElement="Flow_PaymentError">
+        <di:waypoint x="1380" y="1048" />
+        <di:waypoint x="1380" y="1070" />
+        <di:waypoint x="1520" y="1070" />
+        <di:waypoint x="1520" y="1030" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Retry_Decision_di" bpmnElement="Flow_Retry_Decision">
+        <di:waypoint x="1570" y="990" />
+        <di:waypoint x="1645" y="990" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RetrySuccess_di" bpmnElement="Flow_RetrySuccess">
+        <di:waypoint x="1695" y="990" />
+        <di:waypoint x="1750" y="990" />
+        <di:waypoint x="1750" y="365" />
+        <di:waypoint x="1720" y="365" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1756" y="668" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RetryFailed_di" bpmnElement="Flow_RetryFailed">
+        <di:waypoint x="1670" y="965" />
+        <di:waypoint x="1670" y="890" />
+        <di:waypoint x="1505" y="890" />
+        <di:waypoint x="1505" y="190" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1681" y="872" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Notify_End_di" bpmnElement="Flow_Notify_End">
+        <di:waypoint x="1720" y="365" />
+        <di:waypoint x="1782" y="365" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_TimeoutError_di" bpmnElement="Flow_TimeoutError">
+        <di:waypoint x="780" y="783" />
+        <di:waypoint x="780" y="825" />
+        <di:waypoint x="870" y="825" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_TimeoutEscalated_di" bpmnElement="Flow_TimeoutEscalated">
+        <di:waypoint x="920" y="785" />
+        <di:waypoint x="920" y="725" />
+        <di:waypoint x="780" y="725" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
