@@ -14,15 +14,23 @@ The main skill is located in `bpmn-generator-pro/`:
 
 ```
 bpmn-generator-pro/
-├── SKILL.md                    # Main instruction file - READ THIS FIRST
+├── SKILL-v2.md                                 # ⭐ OPTIMIZED Main instruction (531 lines, 72% reduction)
+├── SKILL.md                                    # Original version (1,902 lines, kept for reference)
 ├── references/
-│   ├── xml-templates.md        # XML snippets for all BPMN elements
+│   ├── xml-templates.md                        # XML snippets for all BPMN elements
 │   ├── gateway-rules-and-antipatterns.md       # Gateway balancing rules (English)
 │   ├── gateway-cheatsheet-ru.md                # Gateway quick reference (Russian)
 │   ├── advanced-patterns.md                    # 10 advanced BPMN patterns
 │   ├── editing-guide.md                        # How to modify existing .bpmn files
 │   ├── intelligent-layout-algorithm-v3.md      # Layout calculation algorithm
-│   └── process-validation-report.md            # Validation results for sample processes
+│   ├── process-validation-report.md            # Validation results for sample processes
+│   ├── visual-best-practices.md                # Collision prevention techniques
+│   ├── layout-analysis.md                      # Real-world pattern analysis
+│   ├── onboarding-layout-analysis.md           # Real-world pattern analysis
+│   ├── multi-merge-prevention.md               # ⭐ NEW: Phase 0 detailed algorithm
+│   ├── examples-guide.md                       # ⭐ NEW: 10+ structural patterns with examples
+│   ├── antipatterns-full.md                    # ⭐ NEW: Complete 15+ anti-pattern catalog
+│   └── workflow-guide.md                       # ⭐ NEW: Step-by-step creation/editing workflows
 └── examples/                                    # Sample BPMN files demonstrating patterns
     ├── example-loan-approval.bpmn              # Reference example
     ├── employee-onboarding.bpmn                # Contains implicit gateway anti-pattern
@@ -33,22 +41,59 @@ bpmn-generator-pro/
 
 ### Critical Files to Understand
 
-1. **SKILL.md** - The brain of the system. Contains:
+1. **SKILL-v2.md** ⭐ (OPTIMIZED) - The brain of the system. Contains:
+   - **Size:** 531 lines (72% reduction from original 1,902 lines)
+   - **Content:** Core rules and quick references only
    - Analysis framework (MANDATORY FIRST STEP before generating any BPMN)
    - Naming conventions (Verb+Object for tasks, questions for gateways)
    - Task type selection matrix
    - Gateway selection decision tree
-   - 15 anti-patterns to avoid (with examples)
+   - Top 5 critical anti-patterns (brief)
    - Validation checklist
+   - Links to detailed reference files
    - XML ID generation rules (consistent prefixes: `Task_`, `Gateway_`, `Flow_`, etc.)
 
-2. **gateway-rules-and-antipatterns.md** & **gateway-cheatsheet-ru.md** - Comprehensive gateway documentation covering:
+2. **multi-merge-prevention.md** ⭐ (NEW) - Comprehensive Phase 0 algorithm:
+   - Why Multi-Merge is the most common error
+   - Step-by-step tabular analysis method
+   - Per-flow algorithm for incremental creation
+   - Real-world examples and detection rules
+   - Golden rule: Only merge gateways and end events can have multiple incoming flows
+
+3. **antipatterns-full.md** ⭐ (NEW) - Complete anti-pattern catalog:
+   - All 15+ anti-patterns with detailed explanations
+   - XML examples of WRONG vs CORRECT approaches
+   - Impact analysis (deadlocks, execution errors, maintenance issues)
+   - Quick detection signals and fixes
+   - Based on research analyzing thousands of BPMN models
+
+4. **examples-guide.md** ⭐ (NEW) - 10 structural pattern examples:
+   - Simple approval, multi-level approval, parallel processing
+   - Timeout/escalation, loops, subprocesses
+   - Inclusive gateway, error handling, multi-instance, event-driven
+   - Complete XML examples with use cases
+   - Pattern selection guide
+
+5. **workflow-guide.md** ⭐ (NEW) - Step-by-step workflows:
+   - Workflow 1: Creating new BPMN process (5 phases)
+   - Workflow 2: Editing existing BPMN (4 phases)
+   - Workflow 3: Iterative refinement cycle
+   - Workflow 4: From requirements document (with step numbers)
+   - Common pitfalls and how to avoid them
+
+6. **gateway-rules-and-antipatterns.md** & **gateway-cheatsheet-ru.md** - Comprehensive gateway documentation:
    - 5 gateway types: Exclusive (XOR), Parallel (AND), Inclusive (OR), Event-Based, Complex
    - Balancing rules (fork must match join)
-   - The Multi-Merge anti-pattern (#9 in SKILL.md)
-   - Token semantics
+   - Token semantics and deadlock prevention
+   - Bilingual support (English/Russian)
 
-3. **xml-templates.md** - Copy-paste XML snippets for every BPMN element
+7. **xml-templates.md** - Copy-paste XML snippets for every BPMN element
+
+8. **intelligent-layout-algorithm-v3.md** - Visual layout calculation:
+   - Progressive spacing (40-80px horizontal, NOT 180px)
+   - End event alignment (same X and Y coordinate)
+   - Fixed lane heights (200-250px)
+   - Collision detection and prevention
 
 ## Key Principles
 
@@ -122,10 +167,15 @@ From SKILL.md sections that MUST be enforced:
 - **#9 Multi-Merge Anti-Pattern**: Tasks should have ONLY ONE incoming sequence flow. Use explicit merge gateway instead.
   - ❌ WRONG: Multiple flows from different XOR gateways → Task
   - ✅ CORRECT: Multiple flows → Merge Gateway → Single flow → Task
-  - **MANDATORY ALGORITHM**: SKILL.md Section 9d contains step-by-step algorithm to prevent Multi-Merge
-    - For EVERY sequence flow creation: Check if target already has incoming flow
+  - **MANDATORY PHASE 0**: Complete tabular analysis BEFORE creating XML (see `multi-merge-prevention.md`)
+    - Create table of ALL elements with incoming flow counts
+    - ANY element (except End Events) with incoming > 1 → Add merge gateway
+    - Only merge gateways and end events can have multiple incoming flows
+  - **MANDATORY ALGORITHM**: For EVERY sequence flow creation:
+    - Check if target already has incoming flow
     - If yes: Insert merge gateway FIRST, then redirect all flows through it
     - Exception: End events can have multiple incoming flows
+  - **FULL DETAILS**: See `references/multi-merge-prevention.md` and `antipatterns-full.md` Section 9
 
 - **#12 Implicit Gateway**: Tasks should have ONLY ONE outgoing sequence flow. Decisions must use explicit gateway.
   - ❌ WRONG: Task with conditional flows as outgoing
@@ -157,23 +207,47 @@ From `gateway-cheatsheet-ru.md`:
 
 ### 4. Workflow for Creating/Editing BPMN
 
-**Creating new process:**
-1. Analyze using SKILL.md Analysis Framework (section at top)
-2. Map actors to lanes, actions to tasks, decisions to gateways
-3. Generate XML using templates from `xml-templates.md`
-4. Calculate layout using algorithm from `intelligent-layout-algorithm-v3.md`
-5. Validate against checklist in SKILL.md
-6. Save .bpmn file
-7. Open in Camunda Modeler: `open -a "Camunda Modeler" "filename.bpmn"`
+**FULL WORKFLOWS:** See `references/workflow-guide.md` for complete step-by-step instructions.
 
-**Editing existing process:**
-1. Read the .bpmn file
-2. Parse both `<bpmn:process>` and `<bpmndi:BPMNDiagram>` sections
-3. Identify element by ID (e.g., `Task_Payment`)
-4. Make changes to process logic
-5. Update visual layout coordinates if needed (preserve existing when possible)
-6. Validate changes against anti-patterns
-7. Save and open in Camunda Modeler
+**Creating new process (5 phases):**
+1. **Phase 0 (MANDATORY):** Complete tabular Multi-Merge pre-check analysis
+   - List ALL elements with incoming flow counts
+   - Identify elements with multiple incoming (except End Events)
+   - Add merge gateways BEFORE creating XML
+   - See `multi-merge-prevention.md` for algorithm
+2. **Phase 1:** Analyze using SKILL-v2.md Analysis Framework
+   - Identify boundaries, actors, happy path, decision logic
+3. **Phase 2:** Process design
+   - Apply PMA restriction (no lanes for single-org)
+   - Apply naming conventions
+   - Select task/gateway types
+4. **Phase 3:** Generate XML
+   - Use templates from `xml-templates.md`
+   - Calculate layout using `intelligent-layout-algorithm-v3.md`
+   - Apply Phase 0 table (includes merge gateways)
+5. **Phase 4:** Validate against checklist in SKILL-v2.md
+6. **Phase 5:** Save and open in Camunda Modeler: `open -a "Camunda Modeler" "filename.bpmn"`
+
+**Editing existing process (4 phases):**
+1. **Phase 1:** Read and parse the .bpmn file
+   - Identify existing elements, IDs, layout
+   - Map sequence flows
+2. **Phase 2:** Plan changes
+   - Check if changes create Multi-Merge
+   - Check if changes create Implicit Gateway
+   - Plan merge gateway insertions if needed
+3. **Phase 3:** Apply changes
+   - Add/modify/remove elements
+   - Update flows (preserve layout when possible)
+   - Add merge gateways where needed
+4. **Phase 4:** Validate and reopen
+   - Validate against anti-patterns
+   - Save and open in Camunda Modeler
+
+**See:** `workflow-guide.md` for detailed instructions on common operations:
+- Adding tasks, boundary events, changing gateway types
+- Adding exception paths, converting to multi-instance
+- Adding escalation, converting sequential to parallel
 
 ## Validation Checklist
 
@@ -251,13 +325,71 @@ Use the intelligent layout algorithm from `intelligent-layout-algorithm-v3.md`:
 
 ## Reference Documentation
 
-The `references/` folder contains comprehensive guides. When working on specific aspects:
+The `references/` folder contains comprehensive guides. **New optimized structure** with specialized files:
 
-- **Gateway issues?** → Read `gateway-rules-and-antipatterns.md` (English) or `gateway-cheatsheet-ru.md` (Russian)
-- **Need XML syntax?** → Use `xml-templates.md`
-- **Complex patterns?** → Check `advanced-patterns.md` (compensation, escalation, multi-instance)
-- **Editing existing files?** → Review `editing-guide.md`
-- **Layout problems?** → Consult `intelligent-layout-algorithm-v3.md`
+### Quick Navigation by Task
+
+**Creating new process:**
+1. Start: Read SKILL-v2.md Analysis Framework
+2. Phase 0: Use `multi-merge-prevention.md` (tabular analysis)
+3. Patterns: Reference `examples-guide.md` (10+ patterns)
+4. XML: Use `xml-templates.md` (syntax)
+5. Layout: Use `intelligent-layout-algorithm-v3.md` (positioning)
+6. Validate: Check `antipatterns-full.md` (avoid mistakes)
+7. Workflow: Follow `workflow-guide.md` (step-by-step)
+
+**Editing existing process:**
+1. Workflow: Read `workflow-guide.md` Workflow 2
+2. Patterns: Reference `editing-guide.md` (modification patterns)
+3. XML: Use `xml-templates.md` (syntax reference)
+4. Validate: Check `antipatterns-full.md` (validate changes)
+
+**Gateway problems:**
+1. English: Read `gateway-rules-and-antipatterns.md`
+2. Russian: Read `gateway-cheatsheet-ru.md`
+3. Multi-Merge: Check `antipatterns-full.md` Section 9
+4. Unbalanced: Check `antipatterns-full.md` Section 6d
+
+**Complex patterns:**
+1. Structural: Use `examples-guide.md` (10 common patterns)
+2. Advanced: Use `advanced-patterns.md` (compensation, escalation, multi-instance, subprocesses)
+
+**Multi-Merge prevention:**
+1. Algorithm: Read `multi-merge-prevention.md`
+2. Examples: Check `antipatterns-full.md` Section 9
+3. Phase 0: Follow SKILL-v2.md Phase 0 section
+
+### File Organization by Category
+
+**Core Instructions:**
+- `SKILL-v2.md` (531 lines) - Optimized main reference
+- `SKILL.md` (1,902 lines) - Original version (deprecated, use v2)
+
+**Anti-Patterns & Quality:**
+- `antipatterns-full.md` ⭐ - Complete 15+ anti-pattern catalog
+- `multi-merge-prevention.md` ⭐ - Phase 0 algorithm in detail
+
+**Patterns & Examples:**
+- `examples-guide.md` ⭐ - 10 structural patterns with full XML
+- `advanced-patterns.md` - Complex patterns (compensation, escalation, etc.)
+
+**Workflows:**
+- `workflow-guide.md` ⭐ - Creation/editing workflows (4 workflows)
+- `editing-guide.md` - Editing patterns and techniques
+
+**Gateway Documentation:**
+- `gateway-rules-and-antipatterns.md` - Comprehensive guide (English)
+- `gateway-cheatsheet-ru.md` - Quick reference (Russian)
+
+**Layout & Visual:**
+- `intelligent-layout-algorithm-v3.md` - Primary layout algorithm
+- `visual-best-practices.md` - Collision prevention
+- `layout-analysis.md` - Real-world pattern analysis
+- `onboarding-layout-analysis.md` - Real-world pattern analysis
+
+**Templates & Validation:**
+- `xml-templates.md` - XML syntax for all BPMN elements
+- `process-validation-report.md` - Example validation results
 
 ## Example Files
 
@@ -278,8 +410,29 @@ The skill system supports both English and Russian. User requests can be in eith
 
 ## Important Notes
 
-- **Always read SKILL.md first** when working with BPMN generation or editing
+- **Always read SKILL-v2.md first** when working with BPMN generation or editing (531 lines, optimized)
+- **Complete Phase 0 Multi-Merge analysis** BEFORE generating any XML (see `multi-merge-prevention.md`)
 - **Preserve visual layout** when editing existing files (don't regenerate coordinates unnecessarily)
 - **Use consistent ID prefixes** (Task_, Gateway_, Flow_, Event_, etc.)
-- **Every change must be validated** against the anti-pattern checklist
+- **Every change must be validated** against the anti-pattern checklist in `antipatterns-full.md`
+- **Follow workflows** in `workflow-guide.md` for step-by-step guidance
 - **Think like a Senior Process Architect** - analyze before generating
+
+## Version History
+
+**v2.1 (2025-12-10) - OPTIMIZATION RELEASE:**
+- ✅ **SKILL-v2.md**: Reduced from 1,902 to 531 lines (72% reduction, ~9,000 tokens saved)
+- ✅ **New reference files** for detailed content:
+  - `multi-merge-prevention.md` - Phase 0 algorithm in detail
+  - `examples-guide.md` - 10 structural patterns with full examples
+  - `antipatterns-full.md` - Complete 15+ anti-pattern catalog
+  - `workflow-guide.md` - Step-by-step creation/editing workflows
+- ✅ **Improved modularity**: Core rules in main file, details in specialized references
+- ✅ **Better organization**: Quick navigation by task, file organization by category
+- ✅ **Token efficiency**: ~38% reduction in total skill size
+- ✅ **Maintained completeness**: All critical information preserved, just reorganized
+
+**v2.0 (2025-12-08):**
+- Added Camunda Modeler integration
+- Added editing support for existing .bpmn files
+- Created `editing-guide.md`
