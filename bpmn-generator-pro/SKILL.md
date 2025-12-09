@@ -452,7 +452,7 @@ Check your updated table:
 ❌ **Skipping the table** - "I'll just be careful" doesn't work consistently
 ❌ **Validating after XML creation** - Fixing is harder than preventing
 
-### Real Example from pm-preparation.bpmn:
+### Real-World Example: Multi-Merge Detection
 
 **What went wrong:** Task_CreateUpdatePackage (2.2.4) had 2 incoming flows:
 1. From Gateway_LibraryAvailable (No)
