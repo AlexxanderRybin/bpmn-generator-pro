@@ -23,8 +23,12 @@ bpmn-generator-pro/
 │   ├── editing-guide.md                        # How to modify existing .bpmn files
 │   ├── intelligent-layout-algorithm-v3.md      # Layout calculation algorithm
 │   └── process-validation-report.md            # Validation results for sample processes
-└── assets/
-    └── example-loan-approval.bpmn              # Reference example
+└── examples/                                    # Sample BPMN files demonstrating patterns
+    ├── example-loan-approval.bpmn              # Reference example
+    ├── employee-onboarding.bpmn                # Contains implicit gateway anti-pattern
+    ├── insurance-claim-processing.bpmn         # Demonstrates all gateway types
+    ├── loan-approval-v3.bpmn                   # Parallel checks, risk-based routing
+    └── online-order-processing.bpmn            # Excellent error handling (100% validation)
 ```
 
 ### Critical Files to Understand
@@ -257,11 +261,14 @@ The `references/` folder contains comprehensive guides. When working on specific
 
 ## Example Files
 
-Sample BPMN files in the root directory demonstrate correct patterns:
+Sample BPMN files in `bpmn-generator-pro/examples/` demonstrate correct patterns:
 - `online-order-processing.bpmn` - Excellent error handling, subprocess usage (scored 100% in validation)
 - `loan-approval-v3.bpmn` - Parallel checks, risk-based routing
 - `employee-onboarding.bpmn` - Contains implicit gateway anti-pattern (needs fix)
 - `insurance-claim-processing.bpmn` - Demonstrates all gateway types
+- `example-loan-approval.bpmn` - Reference example with proper structure
+
+All examples are located in `bpmn-generator-pro/examples/` directory.
 
 ## Language
 

@@ -22,8 +22,12 @@ bpmn-generator-pro/
 │   ├── xml-templates.md                  # XML шаблоны
 │   ├── advanced-patterns.md              # Продвинутые паттерны
 │   └── editing-guide.md                  # ⭐ НОВЫЙ: Гайд по редактированию
-└── assets/
-    └── example-loan-approval.bpmn        # Пример
+└── examples/                             # ⭐ Учебные примеры BPMN
+    ├── example-loan-approval.bpmn        # Референсный пример
+    ├── employee-onboarding.bpmn          # С anti-pattern (для обучения)
+    ├── insurance-claim-processing.bpmn   # Все типы гейтвеев
+    ├── loan-approval-v3.bpmn             # Параллельные проверки
+    └── online-order-processing.bpmn      # Эталон (100% валидация)
 ```
 
 ## Использование
