@@ -358,7 +358,7 @@ Task → Gateway → Task_A
 - Horizontal gaps: 40-80px
 - No overlaps guaranteed
 
-**Full algorithm:** See `references/intelligent-layout-algorithm-v3.md` (progressive spacing, waypoints, collision detection)
+**Full algorithm:** See `references/layout-guide.md` ⭐ (unified guide with progressive spacing, content-driven dimensions, real-world validation)
 
 ## Validation Checklist (MANDATORY)
 
@@ -490,7 +490,11 @@ When user requests edits:
 - **`references/gateway-complete-guide.md`** ⭐ - Unified comprehensive guide (English + Russian terms) covering all 5 gateway types, balancing rules, token semantics, and anti-patterns
 
 ### Layout & Positioning
-- **`references/intelligent-layout-algorithm-v3.md`** - Primary layout algorithm v3.0 (progressive spacing, waypoints)
+- **`references/layout-guide.md`** ⭐ - Unified layout guide v3.1 (replaces 3 files: algorithm + 2 analysis docs)
+  - Progressive spacing (40-80px, NOT 180px)
+  - Content-driven lane heights (200-400px)
+  - End event alignment (visual finish line)
+  - Real-world validation from user corrections
 - **`references/visual-best-practices.md`** - Collision prevention and visual clarity techniques
 
 ### Patterns & Examples

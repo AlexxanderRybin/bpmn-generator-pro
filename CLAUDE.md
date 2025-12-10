@@ -93,11 +93,14 @@ bpmn-generator-pro/
 
 7. **xml-templates.md** - Copy-paste XML snippets for every BPMN element
 
-8. **intelligent-layout-algorithm-v3.md** - Visual layout calculation:
+8. **layout-guide.md** ⭐ (NEW - UNIFIED) - Visual layout calculation:
+   - **Replaces:** intelligent-layout-algorithm-v3.md + layout-analysis.md + onboarding-layout-analysis.md
+   - **Size:** 566 lines (63% reduction from 1,550 lines total)
    - Progressive spacing (40-80px horizontal, NOT 180px)
-   - End event alignment (same X and Y coordinate)
-   - Fixed lane heights (200-250px)
+   - Content-driven lane heights (200-400px formula)
+   - End event alignment (same X and Y coordinate - visual finish line)
    - Collision detection and prevention
+   - Real-world validation (2 case studies from user corrections)
 
 ## Key Principles
 
@@ -338,7 +341,7 @@ The `references/` folder contains comprehensive guides. **New optimized structur
 2. Phase 0: Use `multi-merge-prevention.md` (tabular analysis)
 3. Patterns: Reference `examples-guide.md` (10+ patterns)
 4. XML: Use `xml-templates.md` (syntax)
-5. Layout: Use `intelligent-layout-algorithm-v3.md` (positioning)
+5. Layout: Use `layout-guide.md` ⭐ (unified positioning algorithm)
 6. Validate: Check `antipatterns-full.md` (avoid mistakes)
 7. Workflow: Follow `workflow-guide.md` (step-by-step)
 
@@ -387,10 +390,11 @@ The `references/` folder contains comprehensive guides. **New optimized structur
 - `gateway-cheatsheet-ru.md` - DEPRECATED (use gateway-complete-guide.md)
 
 **Layout & Visual:**
-- `intelligent-layout-algorithm-v3.md` - Primary layout algorithm
-- `visual-best-practices.md` - Collision prevention
-- `layout-analysis.md` - Real-world pattern analysis
-- `onboarding-layout-analysis.md` - Real-world pattern analysis
+- `layout-guide.md` ⭐ - Unified layout guide (replaces 3 files, 63% reduction)
+- `visual-best-practices.md` - Collision prevention and visual clarity
+- `intelligent-layout-algorithm-v3.md` - DEPRECATED (use layout-guide.md)
+- `layout-analysis.md` - DEPRECATED (use layout-guide.md)
+- `onboarding-layout-analysis.md` - DEPRECATED (use layout-guide.md)
 
 **Templates & Validation:**
 - `xml-templates.md` - XML syntax for all BPMN elements
@@ -445,8 +449,17 @@ The skill system supports both English and Russian. User requests can be in eith
 - ✅ **Bilingual support**: English primary with Russian terms where helpful
 - ✅ **Complete coverage**: All 5 gateway types, balancing, token semantics, anti-patterns
 
-**Total Optimization:**
-- ✅ **Token efficiency**: ~42% reduction in total skill size
+**Phase 3 - Layout Documentation Merge:**
+- ✅ **layout-guide.md**: Unified guide from 3 files
+  - Combined: intelligent-layout-algorithm-v3.md (748 lines) + layout-analysis.md (420 lines) + onboarding-layout-analysis.md (382 lines)
+  - Result: layout-guide.md (566 lines)
+  - **63% reduction** (984 lines saved, ~7,000 tokens)
+- ✅ **Real-world validation**: Integrated insights from user corrections
+- ✅ **Complete algorithm**: 7 phases with formulas, examples, quick reference
+
+**Total Optimization (Phases 1-3):**
+- ✅ **Token efficiency**: ~48% reduction in total skill size
+- ✅ **Line reduction**: 4,571 lines saved (SKILL + Gateways + Layout)
 - ✅ **Maintained completeness**: All critical information preserved, just reorganized
 
 **v2.0 (2025-12-08):**
