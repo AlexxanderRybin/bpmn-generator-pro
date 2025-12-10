@@ -81,11 +81,15 @@ bpmn-generator-pro/
    - Workflow 4: From requirements document (with step numbers)
    - Common pitfalls and how to avoid them
 
-6. **gateway-rules-and-antipatterns.md** & **gateway-cheatsheet-ru.md** - Comprehensive gateway documentation:
-   - 5 gateway types: Exclusive (XOR), Parallel (AND), Inclusive (OR), Event-Based, Complex
+6. **gateway-complete-guide.md** ⭐ (NEW - UNIFIED) - Comprehensive gateway documentation:
+   - **Replaces:** gateway-rules-and-antipatterns.md + gateway-cheatsheet-ru.md
+   - **Size:** 672 lines (61% reduction from 1,710 lines total)
+   - All 5 gateway types: Exclusive (XOR), Parallel (AND), Inclusive (OR), Event-Based, Complex
    - Balancing rules (fork must match join)
    - Token semantics and deadlock prevention
-   - Bilingual support (English/Russian)
+   - Universal anti-patterns for gateways
+   - Bilingual support (English primary, Russian terms where helpful)
+   - Quick reference tables and decision trees
 
 7. **xml-templates.md** - Copy-paste XML snippets for every BPMN element
 
@@ -345,10 +349,10 @@ The `references/` folder contains comprehensive guides. **New optimized structur
 4. Validate: Check `antipatterns-full.md` (validate changes)
 
 **Gateway problems:**
-1. English: Read `gateway-rules-and-antipatterns.md`
-2. Russian: Read `gateway-cheatsheet-ru.md`
-3. Multi-Merge: Check `antipatterns-full.md` Section 9
-4. Unbalanced: Check `antipatterns-full.md` Section 6d
+1. Read `gateway-complete-guide.md` ⭐ (unified guide, bilingual)
+2. Multi-Merge: Check `antipatterns-full.md` Section 9 OR `gateway-complete-guide.md` Anti-Patterns
+3. Unbalanced: Check `antipatterns-full.md` Section 6d OR `gateway-complete-guide.md` Balancing Rules
+4. Token deadlocks: Check `gateway-complete-guide.md` Token Semantics section
 
 **Complex patterns:**
 1. Structural: Use `examples-guide.md` (10 common patterns)
@@ -378,8 +382,9 @@ The `references/` folder contains comprehensive guides. **New optimized structur
 - `editing-guide.md` - Editing patterns and techniques
 
 **Gateway Documentation:**
-- `gateway-rules-and-antipatterns.md` - Comprehensive guide (English)
-- `gateway-cheatsheet-ru.md` - Quick reference (Russian)
+- `gateway-complete-guide.md` ⭐ - Unified comprehensive guide (replaces 2 files, 61% reduction)
+- `gateway-rules-and-antipatterns.md` - DEPRECATED (use gateway-complete-guide.md)
+- `gateway-cheatsheet-ru.md` - DEPRECATED (use gateway-complete-guide.md)
 
 **Layout & Visual:**
 - `intelligent-layout-algorithm-v3.md` - Primary layout algorithm
@@ -421,6 +426,8 @@ The skill system supports both English and Russian. User requests can be in eith
 ## Version History
 
 **v2.1 (2025-12-10) - OPTIMIZATION RELEASE:**
+
+**Phase 1 - Main File Restructuring:**
 - ✅ **SKILL-v2.md**: Reduced from 1,902 to 531 lines (72% reduction, ~9,000 tokens saved)
 - ✅ **New reference files** for detailed content:
   - `multi-merge-prevention.md` - Phase 0 algorithm in detail
@@ -429,7 +436,17 @@ The skill system supports both English and Russian. User requests can be in eith
   - `workflow-guide.md` - Step-by-step creation/editing workflows
 - ✅ **Improved modularity**: Core rules in main file, details in specialized references
 - ✅ **Better organization**: Quick navigation by task, file organization by category
-- ✅ **Token efficiency**: ~38% reduction in total skill size
+
+**Phase 2 - Gateway Documentation Merge:**
+- ✅ **gateway-complete-guide.md**: Unified guide from 2 files
+  - Combined: gateway-rules-and-antipatterns.md (829 lines) + gateway-cheatsheet-ru.md (881 lines)
+  - Result: gateway-complete-guide.md (672 lines)
+  - **61% reduction** (1,038 lines saved, ~7,000 tokens)
+- ✅ **Bilingual support**: English primary with Russian terms where helpful
+- ✅ **Complete coverage**: All 5 gateway types, balancing, token semantics, anti-patterns
+
+**Total Optimization:**
+- ✅ **Token efficiency**: ~42% reduction in total skill size
 - ✅ **Maintained completeness**: All critical information preserved, just reorganized
 
 **v2.0 (2025-12-08):**

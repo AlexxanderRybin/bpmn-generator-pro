@@ -286,6 +286,8 @@ Task → Gateway → Task_A
 
 **Full anti-pattern catalog:** See `references/antipatterns-full.md` (15+ patterns with examples)
 
+**Gateway details:** See `references/gateway-complete-guide.md` (comprehensive rules, token semantics, all 5 types)
+
 ## Exception Handling Patterns
 
 ### Boundary Error Event
@@ -485,8 +487,7 @@ When user requests edits:
 - **`references/multi-merge-prevention.md`** - In-depth Phase 0 algorithm and Multi-Merge prevention
 
 ### Gateway Rules (CRITICAL)
-- **`references/gateway-rules-and-antipatterns.md`** - Comprehensive gateway guide (English) with token semantics
-- **`references/gateway-cheatsheet-ru.md`** - Gateway quick reference (Russian) with decision trees
+- **`references/gateway-complete-guide.md`** ⭐ - Unified comprehensive guide (English + Russian terms) covering all 5 gateway types, balancing rules, token semantics, and anti-patterns
 
 ### Layout & Positioning
 - **`references/intelligent-layout-algorithm-v3.md`** - Primary layout algorithm v3.0 (progressive spacing, waypoints)
