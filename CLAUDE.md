@@ -14,23 +14,19 @@ The main skill is located in `bpmn-generator-pro/`:
 
 ```
 bpmn-generator-pro/
-├── SKILL-v2.md                                 # ⭐ OPTIMIZED Main instruction v2.2 (529 lines, 72% reduction)
-├── SKILL.md                                    # Original version (1,902 lines, kept for reference)
+├── SKILL-v2.md                                 # ⭐ Main instruction v2.2 (529 lines, optimized with tables)
 ├── references/
 │   ├── xml-templates.md                        # XML snippets for all BPMN elements
-│   ├── gateway-rules-and-antipatterns.md       # Gateway balancing rules (English)
-│   ├── gateway-cheatsheet-ru.md                # Gateway quick reference (Russian)
-│   ├── advanced-patterns.md                    # 10 advanced BPMN patterns
+│   ├── gateway-complete-guide.md               # ⭐ Unified gateway guide (all 5 types, bilingual)
+│   ├── layout-guide.md                         # ⭐ Unified layout algorithm v3.1
+│   ├── multi-merge-prevention.md               # ⭐ Phase 0 detailed algorithm (MANDATORY)
+│   ├── antipatterns-full.md                    # ⭐ Complete 15+ anti-pattern catalog
+│   ├── workflow-guide.md                       # ⭐ Step-by-step creation/editing workflows
+│   ├── examples-guide.md                       # ⭐ 10+ structural patterns with examples
+│   ├── advanced-patterns.md                    # Complex patterns (compensation, escalation)
 │   ├── editing-guide.md                        # How to modify existing .bpmn files
-│   ├── intelligent-layout-algorithm-v3.md      # Layout calculation algorithm
-│   ├── process-validation-report.md            # Validation results for sample processes
 │   ├── visual-best-practices.md                # Collision prevention techniques
-│   ├── layout-analysis.md                      # Real-world pattern analysis
-│   ├── onboarding-layout-analysis.md           # Real-world pattern analysis
-│   ├── multi-merge-prevention.md               # ⭐ NEW: Phase 0 detailed algorithm
-│   ├── examples-guide.md                       # ⭐ NEW: 10+ structural patterns with examples
-│   ├── antipatterns-full.md                    # ⭐ NEW: Complete 15+ anti-pattern catalog
-│   └── workflow-guide.md                       # ⭐ NEW: Step-by-step creation/editing workflows
+│   └── process-validation-report.md            # Validation results for sample processes
 └── examples/                                    # Sample BPMN files demonstrating patterns
     ├── example-loan-approval.bpmn              # Reference example
     ├── employee-onboarding.bpmn                # Contains implicit gateway anti-pattern
@@ -140,7 +136,7 @@ bpmn-generator-pro/
 
 **Golden rule:** "The happy path should be a straight line, not a zigzag."
 
-See SKILL.md "Process Layout Philosophy (PMA Approach)" for full details.
+See SKILL-v2.md "Process Layout Philosophy (PMA Approach)" for full details.
 
 ### 2. BPMN 2.0 XML Structure
 
@@ -169,7 +165,7 @@ All .bpmn files have this structure:
 
 ### 2. Critical Anti-Patterns (MUST AVOID)
 
-From SKILL.md sections that MUST be enforced:
+From SKILL-v2.md sections that MUST be enforced:
 
 - **#9 Multi-Merge Anti-Pattern**: Tasks should have ONLY ONE incoming sequence flow. Use explicit merge gateway instead.
   - ❌ WRONG: Multiple flows from different XOR gateways → Task
@@ -195,7 +191,7 @@ From SKILL.md sections that MUST be enforced:
 
 ### 3. Gateway Rules (Golden Rules)
 
-From `gateway-cheatsheet-ru.md`:
+From `gateway-complete-guide.md`:
 
 **Exclusive Gateway (XOR)**:
 - Exactly ONE path activates
@@ -230,7 +226,7 @@ From `gateway-cheatsheet-ru.md`:
    - Select task/gateway types
 4. **Phase 3:** Generate XML
    - Use templates from `xml-templates.md`
-   - Calculate layout using `intelligent-layout-algorithm-v3.md`
+   - Calculate layout using `layout-guide.md`
    - Apply Phase 0 table (includes merge gateways)
 5. **Phase 4:** Validate against checklist in SKILL-v2.md
 6. **Phase 5:** Save and open in Camunda Modeler: `open -a "Camunda Modeler" "filename.bpmn"`
@@ -258,7 +254,7 @@ From `gateway-cheatsheet-ru.md`:
 
 ## Validation Checklist
 
-Before considering any BPMN file complete, verify (from SKILL.md):
+Before considering any BPMN file complete, verify (from SKILL-v2.md):
 
 **Structural:**
 - [ ] Has exactly ONE start event
@@ -295,7 +291,7 @@ This allows visual inspection. Camunda Modeler is located at `/Applications/Camu
 ## Common Tasks
 
 ### Validate a BPMN file
-Read the file and check against the validation checklist in SKILL.md. The `process-validation-report.md` shows examples of validation results for reference processes.
+Read the file and check against the validation checklist in SKILL-v2.md. The `process-validation-report.md` shows examples of validation results for reference processes.
 
 ### Add error handling to a task
 Use boundary error event pattern from `xml-templates.md`:
@@ -307,7 +303,7 @@ Use boundary error event pattern from `xml-templates.md`:
 ```
 
 ### Fix Multi-Merge anti-pattern
-Insert explicit merge gateway (see SKILL.md section 9):
+Insert explicit merge gateway (see `multi-merge-prevention.md`):
 ```xml
 <!-- Add merge gateway -->
 <bpmn:exclusiveGateway id="Gateway_Merge">
@@ -323,7 +319,7 @@ Insert explicit merge gateway (see SKILL.md section 9):
 ```
 
 ### Calculate visual layout
-Use the intelligent layout algorithm from `intelligent-layout-algorithm-v3.md`:
+Use the intelligent layout algorithm from `layout-guide.md`:
 - Pool: 1900×650px (standard size)
 - Element spacing: 150px horizontal, 100px vertical
 - Lane height: Divide pool height by number of lanes
@@ -370,7 +366,6 @@ The `references/` folder contains comprehensive guides. **New optimized structur
 
 **Core Instructions:**
 - `SKILL-v2.md` (529 lines) - Optimized main reference v2.2 with tables and prioritization
-- `SKILL.md` (1,902 lines) - Original version (deprecated, use v2)
 
 **Anti-Patterns & Quality:**
 - `antipatterns-full.md` ⭐ - Complete 15+ anti-pattern catalog
@@ -385,16 +380,11 @@ The `references/` folder contains comprehensive guides. **New optimized structur
 - `editing-guide.md` - Editing patterns and techniques
 
 **Gateway Documentation:**
-- `gateway-complete-guide.md` ⭐ - Unified comprehensive guide (replaces 2 files, 61% reduction)
-- `gateway-rules-and-antipatterns.md` - DEPRECATED (use gateway-complete-guide.md)
-- `gateway-cheatsheet-ru.md` - DEPRECATED (use gateway-complete-guide.md)
+- `gateway-complete-guide.md` ⭐ - Unified comprehensive guide (all 5 types, bilingual, 61% reduction)
 
 **Layout & Visual:**
-- `layout-guide.md` ⭐ - Unified layout guide (replaces 3 files, 63% reduction)
+- `layout-guide.md` ⭐ - Unified layout guide (7-phase algorithm, 63% reduction)
 - `visual-best-practices.md` - Collision prevention and visual clarity
-- `intelligent-layout-algorithm-v3.md` - DEPRECATED (use layout-guide.md)
-- `layout-analysis.md` - DEPRECATED (use layout-guide.md)
-- `onboarding-layout-analysis.md` - DEPRECATED (use layout-guide.md)
 
 **Templates & Validation:**
 - `xml-templates.md` - XML syntax for all BPMN elements
@@ -413,9 +403,7 @@ All examples are located in `bpmn-generator-pro/examples/` directory.
 
 ## Language
 
-The skill system supports both English and Russian. User requests can be in either language. Documentation includes both:
-- `gateway-rules-and-antipatterns.md` (English)
-- `gateway-cheatsheet-ru.md` (Russian)
+The skill system supports both English and Russian. User requests can be in either language. All unified documentation files (`gateway-complete-guide.md`, `layout-guide.md`) include bilingual support with English primary content and Russian terms where helpful.
 
 ## Important Notes
 
@@ -469,7 +457,18 @@ The skill system supports both English and Russian. User requests can be in eith
 - ✅ **Clear hierarchy**: Visual markers indicate priority levels at a glance
 - ✅ **No content loss**: All information preserved with improved accessibility
 
-**Total Optimization (Phases 1-4):**
+**Phase 5 - Repository Cleanup:**
+- ✅ **Removed deprecated files** (6 files, 5,162 lines):
+  - SKILL.md (1,902 lines) - replaced by SKILL-v2.md
+  - gateway-rules-and-antipatterns.md (829 lines) - merged into gateway-complete-guide.md
+  - gateway-cheatsheet-ru.md (881 lines) - merged into gateway-complete-guide.md
+  - intelligent-layout-algorithm-v3.md (692 lines) - merged into layout-guide.md
+  - layout-analysis.md (458 lines) - merged into layout-guide.md
+  - onboarding-layout-analysis.md (400 lines) - merged into layout-guide.md
+- ✅ **Updated all references** in CLAUDE.md to point to new unified files
+- ✅ **Clean repository**: Only active, optimized files remain
+
+**Total Optimization (Phases 1-5):**
 - ✅ **Token efficiency**: ~52% reduction in total skill size
 - ✅ **Line reduction**: 4,573 lines saved (SKILL + Gateways + Layout + Formatting)
 - ✅ **Improved structure**: Tables, markers, consistent formatting throughout
